@@ -8,22 +8,27 @@ export const transformSketch = async (
   category: CategoryType,
   promptExtra: string = ""
 ): Promise<string> => {
-  // Inisialisasi langsung menggunakan process.env.API_KEY yang sudah ada di environment
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Mencoba mengambil dari API_KEY (standar) atau GEMINI_API_KEY (seperti di screenshot Anda)
+  const apiKey = process.env.API_KEY || (process.env as any).GEMINI_API_KEY;
+
+  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+    throw new Error("Kunci Sihir (API Key) tidak terdeteksi. Pastikan variabel di Vercel bernama 'API_KEY' atau 'GEMINI_API_KEY', lalu lakukan Re-deploy aplikasi Anda.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
-  // Ambil data base64 murni
+  // Ambil data base64 murni tanpa prefix
   const base64Data = base64Image.split(',')[1];
   
   const prompt = `
     TASK: Transform this hand-drawn sketch into a photorealistic 3D ${category} in a ${style} style.
     
     INSTRUCTIONS:
-    1. Maintain the EXACT pose, proportions, and silhouette from the original sketch.
+    1. Preserve the EXACT pose, proportions, and silhouette from the original sketch.
     2. Add highly detailed textures appropriate for a ${category}.
-    3. Use professional ${style} lighting.
-    4. Clean, studio-like background.
-    5. Result must look like a high-end 3D render.
-    6. No text or labels.
+    3. Use professional ${style} lighting and a clean background.
+    4. Result must look like a high-end 3D render.
+    5. DO NOT include any text, labels, or the original sketch lines in the output.
     
     ADDITIONAL CONTEXT: ${promptExtra}
   `;
@@ -51,33 +56,33 @@ export const transformSketch = async (
 
     let imageUrl = '';
     // Iterasi semua bagian untuk menemukan gambar sesuai panduan SDK
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-          break;
-        }
+    const parts = response.candidates?.[0]?.content?.parts || [];
+    for (const part of parts) {
+      if (part.inlineData) {
+        imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+        break;
       }
     }
 
     if (!imageUrl) {
-      throw new Error("AI tidak memberikan hasil gambar. Coba ganti gaya atau kategori.");
+      throw new Error("AI berhasil memproses tapi tidak mengirimkan gambar. Coba ganti gaya atau kategori.");
     }
 
     return imageUrl;
   } catch (error: any) {
     console.error("Gemini Error:", error);
     
-    // Memberikan pesan yang lebih spesifik berdasarkan error dari Google API
     const msg = error.message?.toLowerCase() || "";
     if (msg.includes("api key") || msg.includes("401") || msg.includes("unauthorized")) {
-      throw new Error("API Key tidak valid atau belum terbaca di Vercel. Pastikan sudah Re-deploy setelah isi Environment Variable.");
+      throw new Error("API Key Anda tidak valid atau salah ketik. Cek kembali di Google AI Studio.");
     } else if (msg.includes("quota") || msg.includes("429")) {
-      throw new Error("Wah, terlalu banyak yang pakai! Tunggu sebentar ya, kuota limit tercapai.");
-    } else if (msg.includes("region") || msg.includes("not available")) {
-      throw new Error("Maaf, fitur ini belum tersedia di wilayah server ini.");
+      throw new Error("Batas pemakaian (Quota) habis. Tunggu sebentar lalu coba lagi.");
+    } else if (msg.includes("safety") || msg.includes("blocked")) {
+      throw new Error("Gambar diblokir karena dianggap tidak aman oleh AI. Coba sketsa lain.");
+    } else if (msg.includes("fetch failed")) {
+      throw new Error("Koneksi gagal. Cek internet Anda atau status server Google.");
     }
     
-    throw new Error(error.message || "Terjadi kesalahan saat memproses gambar.");
+    throw new Error(error.message || "Terjadi kesalahan saat memproses gambar magic.");
   }
 };
