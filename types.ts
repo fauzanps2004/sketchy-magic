@@ -11,7 +11,8 @@ export enum CategoryType {
   CHARACTER = 'Character',
   CREATURE = 'Creature',
   OBJECT = 'Object',
-  ENVIRONMENT = 'Environment'
+  ENVIRONMENT = 'Environment',
+  VEHICLE = 'Vehicle'
 }
 
 export interface TransformationResult {

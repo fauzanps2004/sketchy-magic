@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleType, CategoryType } from './types';
 import { STYLES, CATEGORIES } from './constants';
 import { transformSketch } from './geminiService';
@@ -15,6 +15,19 @@ const App: React.FC = () => {
   const [extraPrompt, setExtraPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('mefuya_tutorial_seen');
+    if (!hasSeenTutorial) {
+      setShowTutorial(true);
+    }
+  }, []);
+
+  const closeTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem('mefuya_tutorial_seen', 'true');
+  };
 
   const handleTransform = async () => {
     if (!sketch) {
@@ -218,11 +231,57 @@ const App: React.FC = () => {
 
         </div>
       </main>
+
+      {/* Tutorial Popup */}
+      {showTutorial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl relative border-4 border-blue-500 animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={closeTutorial}
+              className="absolute top-6 right-6 text-gray-300 hover:text-gray-500 transition-colors"
+            >
+              <i className="fas fa-times text-xl"></i>
+            </button>
+            
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fas fa-book-open text-3xl text-blue-600"></i>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800">Panduan Ajaib</h3>
+              <p className="text-gray-400">Hanya 3 langkah menuju mahakarya!</p>
+            </div>
+
+            <div className="space-y-6 mb-8">
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex-shrink-0 flex items-center justify-center font-bold text-blue-600 italic">1</div>
+                <p className="text-sm text-gray-600 leading-relaxed"><strong>Unggah Sketsa:</strong> Masukkan foto gambarmu (kertas putih polos paling bagus!).</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-yellow-100 flex-shrink-0 flex items-center justify-center font-bold text-yellow-600 italic">2</div>
+                <p className="text-sm text-gray-600 leading-relaxed"><strong>Pilih Gaya:</strong> Tentukan ingin jadi foto nyata, ala film, atau fantasi epik.</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 flex-shrink-0 flex items-center justify-center font-bold text-purple-600 italic">3</div>
+                <p className="text-sm text-gray-600 leading-relaxed"><strong>Beri Mantra:</strong> Tambahkan detail lewat teks (misal: "warna merah menyala").</p>
+              </div>
+            </div>
+
+            <button 
+              onClick={closeTutorial}
+              className="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
+            >
+              Siap Beraksi!
+            </button>
+          </div>
+        </div>
+      )}
       
       <footer className="mt-20 py-10 border-t border-gray-100 text-center">
         <p className="text-gray-400 font-medium flex items-center justify-center gap-2">
-          <span>Dibuat dengan imajinasi & Gemini AI</span>
+          <i className="fa-regular fa-copyright"></i>
+          <span>2025 Mefuya Entertainment</span>
         </p>
+        <p className="text-gray-300 text-[10px] mt-2 tracking-widest uppercase font-bold">Imajinasi Tanpa Batas</p>
       </footer>
 
       <style>{`

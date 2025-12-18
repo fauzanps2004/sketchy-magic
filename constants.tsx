@@ -12,6 +12,7 @@ export const STYLES = [
 export const CATEGORIES = [
   { id: CategoryType.CHARACTER, label: 'Karakter' },
   { id: CategoryType.CREATURE, label: 'Monster/Hewan' },
+  { id: CategoryType.VEHICLE, label: 'Kendaraan' },
   { id: CategoryType.OBJECT, label: 'Benda Perkakas' },
   { id: CategoryType.ENVIRONMENT, label: 'Pemandangan' },
 ];
