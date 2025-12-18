@@ -8,29 +8,30 @@ export const transformSketch = async (
   category: CategoryType,
   promptExtra: string = ""
 ): Promise<string> => {
-  // Mencoba mengambil dari API_KEY (standar) atau GEMINI_API_KEY (seperti di screenshot Anda)
-  const apiKey = process.env.API_KEY || (process.env as any).GEMINI_API_KEY;
+  // Directly use the environment variable as per system instructions
+  const apiKey = process.env.API_KEY;
 
-  if (!apiKey || apiKey === "undefined" || apiKey === "") {
-    throw new Error("Kunci Sihir (API Key) tidak terdeteksi. Pastikan variabel di Vercel bernama 'API_KEY' atau 'GEMINI_API_KEY', lalu lakukan Re-deploy aplikasi Anda.");
+  if (!apiKey) {
+    throw new Error("Sistem belum siap. API Key tidak ditemukan di server.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Ambil data base64 murni tanpa prefix
+  // Extract pure base64 data
   const base64Data = base64Image.split(',')[1];
   
   const prompt = `
-    TASK: Transform this hand-drawn sketch into a photorealistic 3D ${category} in a ${style} style.
+    Transform this hand-drawn sketch into a high-quality, professional 3D ${category}.
+    STYLE: ${style}
     
-    INSTRUCTIONS:
-    1. Preserve the EXACT pose, proportions, and silhouette from the original sketch.
-    2. Add highly detailed textures appropriate for a ${category}.
-    3. Use professional ${style} lighting and a clean background.
-    4. Result must look like a high-end 3D render.
-    5. DO NOT include any text, labels, or the original sketch lines in the output.
+    CRITICAL RULES:
+    1. Maintain the EXACT pose and silhouette of the drawing.
+    2. Add realistic textures, professional studio lighting, and depth.
+    3. The output must look like a finished 3D render or a high-quality photograph.
+    4. Remove all paper textures, pencil marks, and grid lines from the original.
+    5. No text, watermark, or labels in the final image.
     
-    ADDITIONAL CONTEXT: ${promptExtra}
+    ${promptExtra ? `EXTRA DETAIL: ${promptExtra}` : ''}
   `;
 
   try {
@@ -54,35 +55,24 @@ export const transformSketch = async (
       }
     });
 
-    let imageUrl = '';
-    // Iterasi semua bagian untuk menemukan gambar sesuai panduan SDK
-    const parts = response.candidates?.[0]?.content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData) {
-        imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-        break;
-      }
+    // Extract the generated image from response parts
+    const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+    
+    if (imagePart?.inlineData?.data) {
+      return `data:image/png;base64,${imagePart.inlineData.data}`;
     }
 
-    if (!imageUrl) {
-      throw new Error("AI berhasil memproses tapi tidak mengirimkan gambar. Coba ganti gaya atau kategori.");
-    }
-
-    return imageUrl;
+    throw new Error("AI tidak menghasilkan gambar. Coba ganti gaya atau gunakan sketsa yang lebih jelas.");
   } catch (error: any) {
-    console.error("Gemini Error:", error);
+    console.error("Gemini API Error:", error);
     
-    const msg = error.message?.toLowerCase() || "";
-    if (msg.includes("api key") || msg.includes("401") || msg.includes("unauthorized")) {
-      throw new Error("API Key Anda tidak valid atau salah ketik. Cek kembali di Google AI Studio.");
-    } else if (msg.includes("quota") || msg.includes("429")) {
-      throw new Error("Batas pemakaian (Quota) habis. Tunggu sebentar lalu coba lagi.");
-    } else if (msg.includes("safety") || msg.includes("blocked")) {
-      throw new Error("Gambar diblokir karena dianggap tidak aman oleh AI. Coba sketsa lain.");
-    } else if (msg.includes("fetch failed")) {
-      throw new Error("Koneksi gagal. Cek internet Anda atau status server Google.");
+    const errorMessage = error.message?.toLowerCase() || "";
+    if (errorMessage.includes("quota") || errorMessage.includes("429")) {
+      throw new Error("Server sedang sibuk (Quota limit). Mohon tunggu 1 menit lalu coba lagi.");
+    } else if (errorMessage.includes("safety")) {
+      throw new Error("Sketsa diblokir oleh filter keamanan. Coba gambar sesuatu yang berbeda.");
     }
     
-    throw new Error(error.message || "Terjadi kesalahan saat memproses gambar magic.");
+    throw new Error("Terjadi gangguan pada tongkat sihir AI. Silakan coba sesaat lagi.");
   }
 };
