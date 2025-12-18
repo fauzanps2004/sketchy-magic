@@ -1,0 +1,7 @@
+{
+  "name": "Sketch2Real AI",
+  "description": "Transform your hand-drawn sketches into photorealistic 3D characters and objects using the power of Gemini AI. Preserve poses and proportions while generating cinematic textures and lighting.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
