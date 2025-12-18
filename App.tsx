@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>(CategoryType.CHARACTER);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsKey, setNeedsKey] = useState(false);
 
   const handleTransform = async () => {
     if (!sketch) {
@@ -23,14 +24,30 @@ const App: React.FC = () => {
 
     setIsGenerating(true);
     setError(null);
+    setNeedsKey(false);
 
     try {
       const generatedUrl = await transformSketch(sketch, selectedStyle, selectedCategory);
       setResult(generatedUrl);
     } catch (err: any) {
-      setError(err.message || "Oh no! The magic failed. Let's try again!");
+      if (err.message === "MISSING_API_KEY") {
+        setError("I need a 'Magic Key' to work on this computer!");
+        setNeedsKey(true);
+      } else {
+        setError(err.message || "Oh no! The magic failed. Let's try again!");
+      }
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleOpenKey = async () => {
+    try {
+      await window.aistudio.openSelectKey();
+      setError(null);
+      setNeedsKey(false);
+    } catch (e) {
+      console.error("Failed to open key selector", e);
     }
   };
 
@@ -107,14 +124,25 @@ const App: React.FC = () => {
             </button>
 
             {error && (
-              <div className="text-center bg-red-50 p-4 rounded-xl border-2 border-red-200">
-                <p className="text-red-600 font-bold">{error}</p>
-                <button 
-                  onClick={() => setError(null)}
-                  className="mt-2 text-xs underline text-red-400"
-                >
-                  Dismiss
-                </button>
+              <div className="text-center bg-red-50 p-6 rounded-xl border-2 border-red-200 space-y-4">
+                <p className="text-red-600 font-bold text-lg">{error}</p>
+                
+                {needsKey ? (
+                  <button 
+                    onClick={handleOpenKey}
+                    className="bg-white hand-drawn-button px-6 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2 mx-auto"
+                  >
+                    <i className="fas fa-key text-yellow-500"></i>
+                    <span>Set Magic Key</span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => setError(null)}
+                    className="text-xs underline text-red-400"
+                  >
+                    Dismiss
+                  </button>
+                )}
               </div>
             )}
           </div>

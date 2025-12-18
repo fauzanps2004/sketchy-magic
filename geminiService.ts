@@ -8,10 +8,15 @@ export const transformSketch = async (
   category: CategoryType,
   promptExtra: string = ""
 ): Promise<string> => {
-  // Use the default environment key provided.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Memastikan API Key ada sebelum inisialisasi untuk menghindari error internal SDK yang membingungkan
+  const apiKey = process.env.API_KEY;
   
-  // Extract base64 data without the prefix
+  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+    throw new Error("MISSING_API_KEY");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: apiKey });
+  
   const base64Data = base64Image.split(',')[1];
   
   const prompt = `
@@ -21,9 +26,9 @@ export const transformSketch = async (
     1. Maintain the EXACT pose, proportions, silhouette, and design elements from the original sketch.
     2. Add highly detailed textures (e.g., skin, fabric, metal, stone) appropriate for a ${category}.
     3. Use professional ${style} lighting (cinematic, high-contrast, or soft as per style).
-    4. The background should be a clean, slightly blurred studio environment or an atmospheric setting that complements the ${style} aesthetic.
+    4. The background should be a clean, slightly blurred studio environment.
     5. Result must look like a high-end 3D render.
-    6. Do not include any text, labels, or the original sketch lines in the final output.
+    6. Do not include any text or labels.
     
     ADDITIONAL CONTEXT: ${promptExtra}
   `;
@@ -50,7 +55,6 @@ export const transformSketch = async (
     });
 
     let imageUrl = '';
-    // Iterate through all parts to find the image part as per guidelines
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         imageUrl = `data:image/png;base64,${part.inlineData.data}`;
@@ -65,6 +69,12 @@ export const transformSketch = async (
     return imageUrl;
   } catch (error: any) {
     console.error("Gemini transformation error:", error);
-    throw new Error("Oh no! The magic wand is tired. Let's try again in a bit!");
+    
+    // Meneruskan error kunci API agar ditangani di UI
+    if (error.message?.includes("API Key") || error.message?.includes("403") || error.message?.includes("PERMISSION_DENIED")) {
+      throw new Error("MISSING_API_KEY");
+    }
+    
+    throw new Error("Oh no! The magic wand is tired. Let's try again!");
   }
 };
