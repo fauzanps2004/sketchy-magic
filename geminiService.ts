@@ -8,30 +8,27 @@ export const transformSketch = async (
   category: CategoryType,
   promptExtra: string = ""
 ): Promise<string> => {
-  // Directly use the environment variable as per system instructions
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.API_KEY || (process.env as any).GEMINI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Sistem belum siap. API Key tidak ditemukan di server.");
+    throw new Error("Sistem belum siap. API Key tidak terdeteksi di server.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  
-  // Extract pure base64 data
   const base64Data = base64Image.split(',')[1];
   
   const prompt = `
-    Transform this hand-drawn sketch into a high-quality, professional 3D ${category}.
-    STYLE: ${style}
+    Transformasi sketsa kasar ini menjadi gambar 3D ${category} profesional yang sangat detail.
+    GAYA VISUAL: ${style}
     
-    CRITICAL RULES:
-    1. Maintain the EXACT pose and silhouette of the drawing.
-    2. Add realistic textures, professional studio lighting, and depth.
-    3. The output must look like a finished 3D render or a high-quality photograph.
-    4. Remove all paper textures, pencil marks, and grid lines from the original.
-    5. No text, watermark, or labels in the final image.
+    ATURAN UTAMA:
+    1. Pertahankan POSE dan BENTUK dasar dari sketsa secara akurat.
+    2. Tambahkan tekstur material yang nyata, pencahayaan studio, dan kedalaman ruang.
+    3. Hasil akhir harus terlihat seperti render 3D high-end atau foto berkualitas tinggi.
+    4. Hilangkan tekstur kertas, garis pensil, atau noda dari gambar asli.
+    5. Jangan ada teks, watermark, atau logo.
     
-    ${promptExtra ? `EXTRA DETAIL: ${promptExtra}` : ''}
+    DETAIL TAMBAHAN DARI PENGGUNA: ${promptExtra || 'Buatlah terlihat mengagumkan.'}
   `;
 
   try {
@@ -55,7 +52,6 @@ export const transformSketch = async (
       }
     });
 
-    // Extract the generated image from response parts
     const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
     
     if (imagePart?.inlineData?.data) {
@@ -68,11 +64,11 @@ export const transformSketch = async (
     
     const errorMessage = error.message?.toLowerCase() || "";
     if (errorMessage.includes("quota") || errorMessage.includes("429")) {
-      throw new Error("Server sedang sibuk (Quota limit). Mohon tunggu 1 menit lalu coba lagi.");
+      throw new Error("Waduh, kuota harian API gratis Anda sudah habis atau terlalu cepat menekan tombol. Mohon tunggu 1-2 menit sebelum mencoba lagi.");
     } else if (errorMessage.includes("safety")) {
-      throw new Error("Sketsa diblokir oleh filter keamanan. Coba gambar sesuatu yang berbeda.");
+      throw new Error("Maaf, sketsa atau permintaan Anda terdeteksi melanggar aturan keamanan konten AI. Coba sketsa yang lebih umum.");
     }
     
-    throw new Error("Terjadi gangguan pada tongkat sihir AI. Silakan coba sesaat lagi.");
+    throw new Error("Terjadi gangguan pada koneksi sihir AI. Silakan coba lagi.");
   }
 };

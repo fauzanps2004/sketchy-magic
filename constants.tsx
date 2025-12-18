@@ -2,16 +2,16 @@
 import { StyleType, CategoryType } from './types';
 
 export const STYLES = [
-  { id: StyleType.REALISTIC, label: 'Real Life', icon: 'fa-camera', description: 'Looks like a photo' },
-  { id: StyleType.CINEMATIC, label: 'Movie', icon: 'fa-film', description: 'Like a big movie' },
-  { id: StyleType.DARK, label: 'Spooky', icon: 'fa-ghost', description: 'Scary and dark' },
-  { id: StyleType.SCIFI, label: 'Robot', icon: 'fa-robot', description: 'From the future' },
-  { id: StyleType.FANTASY, label: 'Magic', icon: 'fa-hat-wizard', description: 'Wizards and dragons' },
+  { id: StyleType.REALISTIC, label: 'Foto Nyata', icon: 'fa-camera', description: 'Hasil seperti foto asli' },
+  { id: StyleType.CINEMATIC, label: 'Ala Film', icon: 'fa-film', description: 'Visual epik layar lebar' },
+  { id: StyleType.DARK, label: 'Misterius', icon: 'fa-moon', description: 'Gelap dan penuh drama' },
+  { id: StyleType.SCIFI, label: 'Masa Depan', icon: 'fa-rocket', description: 'Tema robot & teknologi' },
+  { id: StyleType.FANTASY, label: 'Dunia Sihir', icon: 'fa-hat-wizard', description: 'Naga & ksatria' },
 ];
 
 export const CATEGORIES = [
-  { id: CategoryType.CHARACTER, label: 'A Person' },
-  { id: CategoryType.CREATURE, label: 'A Monster' },
-  { id: CategoryType.OBJECT, label: 'A Thing' },
-  { id: CategoryType.ENVIRONMENT, label: 'A Place' },
+  { id: CategoryType.CHARACTER, label: 'Karakter' },
+  { id: CategoryType.CREATURE, label: 'Monster/Hewan' },
+  { id: CategoryType.OBJECT, label: 'Benda Perkakas' },
+  { id: CategoryType.ENVIRONMENT, label: 'Pemandangan' },
 ];

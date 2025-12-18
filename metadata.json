@@ -1,6 +1,6 @@
 {
-  "name": "Sketchy Magic",
-  "description": "Transform your hand-drawn sketches into photorealistic 3D characters and objects using the power of Gemini AI. Preserve poses and proportions while generating cinematic textures and lighting.",
+  "name": "Mefuya Magic",
+  "description": "Ubah sketsa tanganmu menjadi karakter dan objek 3D fotorealistik menggunakan kekuatan Gemini AI. Pertahankan pose dan proporsi sambil menghasilkan tekstur dan pencahayaan sinematik.",
   "requestFramePermissions": [
     "camera"
   ]

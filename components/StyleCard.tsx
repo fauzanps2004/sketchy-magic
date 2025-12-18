@@ -14,15 +14,15 @@ const StyleCard: React.FC<StyleCardProps> = ({ id, label, icon, isSelected, onSe
   return (
     <button
       onClick={() => onSelect(id)}
-      className={`p-3 hand-drawn-button transition-all flex flex-col items-center justify-center gap-2
+      className={`p-4 rounded-2xl transition-all flex flex-col items-center justify-center gap-2 border-2
         ${isSelected 
-          ? 'bg-yellow-200 border-yellow-600 shadow-md rotate-[-2deg]' 
-          : 'bg-white border-gray-300 hover:border-gray-500'}`}
+          ? 'bg-blue-50 border-blue-600 shadow-lg shadow-blue-50 scale-105' 
+          : 'bg-white border-gray-100 hover:border-gray-300 text-gray-400 hover:text-gray-600'}`}
     >
-      <div className={`text-xl ${isSelected ? 'text-yellow-700' : 'text-gray-400'}`}>
+      <div className={`text-xl transition-colors ${isSelected ? 'text-blue-600' : ''}`}>
         <i className={`fas ${icon}`}></i>
       </div>
-      <span className="text-sm font-bold">{label}</span>
+      <span className={`text-[10px] font-black uppercase tracking-tighter ${isSelected ? 'text-blue-900' : ''}`}>{label}</span>
     </button>
   );
 };
