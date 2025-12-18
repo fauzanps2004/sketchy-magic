@@ -14,40 +14,23 @@ const App: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>(CategoryType.CHARACTER);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsKey, setNeedsKey] = useState(false);
 
   const handleTransform = async () => {
     if (!sketch) {
-      setError("Oops! You forgot to draw something!");
+      setError("Eh, gambarnya mana? Upload atau gambar dulu ya!");
       return;
     }
 
     setIsGenerating(true);
     setError(null);
-    setNeedsKey(false);
 
     try {
       const generatedUrl = await transformSketch(sketch, selectedStyle, selectedCategory);
       setResult(generatedUrl);
     } catch (err: any) {
-      if (err.message === "MISSING_API_KEY") {
-        setError("I need a 'Magic Key' to work on this computer!");
-        setNeedsKey(true);
-      } else {
-        setError(err.message || "Oh no! The magic failed. Let's try again!");
-      }
+      setError(err.message || "Gagal membuat gambar magic. Coba lagi!");
     } finally {
       setIsGenerating(false);
-    }
-  };
-
-  const handleOpenKey = async () => {
-    try {
-      await window.aistudio.openSelectKey();
-      setError(null);
-      setNeedsKey(false);
-    } catch (e) {
-      console.error("Failed to open key selector", e);
     }
   };
 
@@ -63,7 +46,7 @@ const App: React.FC = () => {
             <section>
               <h2 className="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">
                 <span className="bg-blue-400 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
-                Draw or Upload
+                Upload Sketsa
               </h2>
               <UploadZone onImageSelect={(b) => { setSketch(b); setResult(null); }} previewImage={sketch} />
             </section>
@@ -71,7 +54,7 @@ const App: React.FC = () => {
             <section className="space-y-6">
               <h2 className="text-xl font-bold text-gray-700 flex items-center gap-2">
                 <span className="bg-yellow-400 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
-                Choose Magic
+                Pilih Gaya Magic
               </h2>
               
               <div className="grid grid-cols-3 gap-3">
@@ -86,7 +69,7 @@ const App: React.FC = () => {
               </div>
 
               <div>
-                <p className="text-sm font-bold text-gray-500 mb-2">What is it?</p>
+                <p className="text-sm font-bold text-gray-500 mb-2">Ini gambar apa?</p>
                 <div className="flex flex-wrap gap-2">
                   {CATEGORIES.map(c => (
                     <button
@@ -113,36 +96,26 @@ const App: React.FC = () => {
               {isGenerating ? (
                 <>
                   <i className="fas fa-spinner fa-spin"></i>
-                  <span>Mixing Magic Colors...</span>
+                  <span>Sedang Melukis...</span>
                 </>
               ) : (
                 <>
                   <i className="fas fa-magic"></i>
-                  <span>Make it REAL!</span>
+                  <span>Jadikan Nyata!</span>
                 </>
               )}
             </button>
 
             {error && (
-              <div className="text-center bg-red-50 p-6 rounded-xl border-2 border-red-200 space-y-4">
+              <div className="text-center bg-red-50 p-6 rounded-xl border-2 border-red-200 space-y-2">
                 <p className="text-red-600 font-bold text-lg">{error}</p>
-                
-                {needsKey ? (
-                  <button 
-                    onClick={handleOpenKey}
-                    className="bg-white hand-drawn-button px-6 py-2 text-gray-700 hover:bg-gray-50 flex items-center gap-2 mx-auto"
-                  >
-                    <i className="fas fa-key text-yellow-500"></i>
-                    <span>Set Magic Key</span>
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => setError(null)}
-                    className="text-xs underline text-red-400"
-                  >
-                    Dismiss
-                  </button>
-                )}
+                <p className="text-xs text-red-400 italic">Pastikan API Key di Vercel sudah benar dan tekan 'Dismiss' untuk coba lagi.</p>
+                <button 
+                  onClick={() => setError(null)}
+                  className="text-xs underline text-red-400 font-bold mt-2"
+                >
+                  Dismiss
+                </button>
               </div>
             )}
           </div>
@@ -151,7 +124,7 @@ const App: React.FC = () => {
           <div className="sticky top-12">
             <h2 className="text-xl font-bold mb-4 text-gray-700 flex items-center gap-2">
               <span className="bg-purple-400 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">3</span>
-              Magic Result
+              Hasil Magic
             </h2>
             <div className="aspect-square hand-drawn-border bg-white flex flex-col items-center justify-center overflow-hidden relative shadow-xl">
               {result ? (
@@ -161,11 +134,11 @@ const App: React.FC = () => {
                     onClick={() => {
                       const link = document.createElement('a');
                       link.href = result;
-                      link.download = "my-creation.png";
+                      link.download = "sketsa-magic.png";
                       link.click();
                     }}
                     className="absolute bottom-4 right-4 bg-white hand-drawn-button p-3 text-gray-700 hover:bg-gray-50 shadow-md"
-                    title="Download Image"
+                    title="Download Gambar"
                   >
                     <i className="fas fa-download text-xl"></i>
                   </button>
@@ -173,15 +146,15 @@ const App: React.FC = () => {
               ) : (
                 <div className="text-center p-12 text-gray-300">
                   <i className="fas fa-wand-sparkles text-6xl mb-6 opacity-20"></i>
-                  <p className="text-lg font-bold">Your masterpiece will appear here!</p>
+                  <p className="text-lg font-bold">Hasil lukisanmu akan muncul di sini!</p>
                 </div>
               )}
               
               {isGenerating && (
                 <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center">
                   <div className="w-16 h-16 border-4 border-t-blue-500 border-gray-100 rounded-full animate-spin mb-4"></div>
-                  <p className="text-xl font-bold text-blue-500">Wait a second...</p>
-                  <p className="text-sm text-gray-500">The AI artist is painting your dream!</p>
+                  <p className="text-xl font-bold text-blue-500">Tunggu sebentar...</p>
+                  <p className="text-sm text-gray-500">Seniman AI sedang bekerja!</p>
                 </div>
               )}
             </div>
@@ -191,7 +164,7 @@ const App: React.FC = () => {
       </main>
       
       <footer className="mt-12 text-center text-gray-400 text-sm">
-        <p>Made with crayons, paper, and Gemini AI ✨</p>
+        <p>Dibuat dengan krayon, kertas, dan Gemini AI ✨</p>
       </footer>
     </div>
   );
