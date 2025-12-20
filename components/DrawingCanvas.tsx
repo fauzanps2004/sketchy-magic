@@ -7,17 +7,6 @@ interface DrawingCanvasProps {
   height: number;
 }
 
-const PRESET_COLORS = [
-  { name: 'Hitam', value: '#000000' },
-  { name: 'Abu', value: '#666666' },
-  { name: 'Putih', value: '#ffffff' },
-  { name: 'Biru', value: '#2563eb' },
-  { name: 'Merah', value: '#dc2626' },
-  { name: 'Hijau', value: '#16a34a' },
-  { name: 'Kuning', value: '#ca8a04' },
-  { name: 'Ungu', value: '#9333ea' }
-];
-
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, height }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
@@ -159,31 +148,29 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-col gap-3 p-4 rounded-lg border transition-colors bg-gray-50 border-gray-100 dark:bg-neutral-800 dark:border-neutral-700">
-        <div className="flex flex-wrap items-center gap-2">
-          {PRESET_COLORS.map((c) => (
-            <button
-              key={c.value}
-              onClick={() => selectColor(c.value)}
-              className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 shadow-sm 
-                ${color === c.value && !isEraser 
-                  ? 'border-black dark:border-white scale-110' 
-                  : 'border-white dark:border-neutral-600'}`}
-              style={{ backgroundColor: c.value }}
-              title={c.name}
-            />
-          ))}
-          <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 shadow-sm group hover:scale-110 transition-transform border-white dark:border-neutral-600">
-             <input 
-              type="color" 
-              value={color} 
-              onChange={(e) => selectColor(e.target.value)}
-              className="absolute inset-[-50%] w-[200%] h-[200%] cursor-pointer border-none p-0"
-              title="Pilih warna kustom"
-            />
+        {/* Color Selection & Thickness */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div 
+                className="relative w-9 h-9 rounded-full overflow-hidden border-2 shadow-sm group hover:scale-105 transition-transform cursor-pointer border-white dark:border-neutral-600 ring-1 ring-black/5 dark:ring-white/10"
+                style={{ backgroundColor: color }}
+            >
+                <input 
+                type="color" 
+                value={color} 
+                onChange={(e) => selectColor(e.target.value)}
+                className="absolute inset-[-50%] w-[200%] h-[200%] cursor-pointer border-none p-0 opacity-0"
+                title="Ganti Warna"
+                />
+            </div>
+            <div className="flex flex-col">
+                <span className="text-[8px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Warna</span>
+                <span className="text-[9px] font-mono text-gray-400 uppercase">{color}</span>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-center justify-between gap-4 pt-2 border-t border-gray-200/50 dark:border-neutral-700">
+          
+          <div className="h-8 w-[1px] bg-gray-200 dark:bg-neutral-600 mx-2"></div>
+
           <div className="flex items-center gap-3 flex-1">
             <i className={`fas fa-circle text-[6px] ${isEraser ? 'text-gray-300 dark:text-neutral-600' : 'text-black dark:text-white'}`}></i>
             <input 
@@ -192,30 +179,31 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
               max="40" 
               value={lineWidth} 
               onChange={(e) => setLineWidth(parseInt(e.target.value))}
-              className="w-full max-w-[100px] accent-black dark:accent-white h-1"
+              className="w-full max-w-[120px] accent-black dark:accent-white h-1 cursor-pointer"
             />
           </div>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsEraser(!isEraser)}
-              className={`text-[9px] font-bold uppercase tracking-[0.15em] transition-colors flex items-center gap-2 px-2 py-1 rounded
-                ${isEraser 
-                  ? 'text-black bg-gray-200 dark:text-black dark:bg-white' 
-                  : 'text-gray-400 hover:text-black dark:hover:text-white'}`}
-            >
-              <i className="fas fa-eraser"></i>
-              {isEraser ? 'Eraser On' : 'Eraser'}
-            </button>
+        </div>
+        
+        {/* Tools */}
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200/50 dark:border-neutral-700 mt-1">
+          <button 
+            onClick={() => setIsEraser(!isEraser)}
+            className={`text-[9px] font-bold uppercase tracking-[0.15em] transition-colors flex items-center gap-2 px-3 py-1.5 rounded-full
+              ${isEraser 
+                ? 'text-white bg-black dark:bg-white dark:text-black shadow-md' 
+                : 'text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white bg-white dark:bg-neutral-700 border border-gray-100 dark:border-neutral-600'}`}
+          >
+            <i className="fas fa-eraser"></i>
+            {isEraser ? 'Eraser On' : 'Eraser'}
+          </button>
 
-            <button 
-              onClick={clearCanvas}
-              className="text-[9px] font-bold uppercase tracking-[0.15em] text-gray-400 hover:text-red-500 transition-colors flex items-center gap-2"
-            >
-              <i className="fas fa-trash-alt"></i>
-              Reset
-            </button>
-          </div>
+          <button 
+            onClick={clearCanvas}
+            className="text-[9px] font-bold uppercase tracking-[0.15em] text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center gap-2 px-3 py-1.5 rounded-full"
+          >
+            <i className="fas fa-trash-alt"></i>
+            Reset
+          </button>
         </div>
       </div>
       
