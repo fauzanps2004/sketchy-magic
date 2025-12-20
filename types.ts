@@ -15,6 +15,8 @@ export enum CategoryType {
   VEHICLE = 'Vehicle'
 }
 
+export type ImageSize = '1K' | '2K' | '4K';
+
 export interface TransformationResult {
   originalImage: string;
   resultImage: string;

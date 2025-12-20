@@ -6,6 +6,7 @@ import { transformSketch } from './geminiService';
 import Header from './components/Header';
 import UploadZone from './components/UploadZone';
 import StyleCard from './components/StyleCard';
+import DrawingCanvas from './components/DrawingCanvas';
 
 const App: React.FC = () => {
   const [sketch, setSketch] = useState<string | null>(null);
@@ -17,6 +18,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
   const [history, setHistory] = useState<TransformationResult[]>([]);
+  const [inputMode, setInputMode] = useState<'upload' | 'draw'>('upload');
 
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('mefuya_tutorial_seen');
@@ -40,8 +42,9 @@ const App: React.FC = () => {
   };
 
   const saveToHistory = (newResult: string) => {
+    if (!sketch) return;
     const item: TransformationResult = {
-      originalImage: sketch!,
+      originalImage: sketch,
       resultImage: newResult,
       style: selectedStyle,
       category: selectedCategory,
@@ -53,8 +56,8 @@ const App: React.FC = () => {
   };
 
   const handleTransform = async () => {
-    if (!sketch) {
-      setError("Silakan unggah sketsa terlebih dahulu.");
+    if (!sketch || sketch === "") {
+      setError("Silakan buat atau unggah sketsa terlebih dahulu.");
       return;
     }
 
@@ -62,7 +65,12 @@ const App: React.FC = () => {
     setError(null);
 
     try {
-      const generatedUrl = await transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt);
+      const generatedUrl = await transformSketch(
+        sketch, 
+        selectedStyle, 
+        selectedCategory, 
+        extraPrompt
+      );
       setResult(generatedUrl);
       saveToHistory(generatedUrl);
     } catch (err: any) {
@@ -70,6 +78,13 @@ const App: React.FC = () => {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const toggleMode = (mode: 'upload' | 'draw') => {
+    setInputMode(mode);
+    setSketch(null);
+    setResult(null);
+    setError(null);
   };
 
   return (
@@ -83,26 +98,50 @@ const App: React.FC = () => {
           <div className="lg:col-span-4 flex flex-col gap-8">
             <div className="modern-card p-6 flex flex-col flex-1">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">01. Sketsa</h2>
-                <button 
-                  onClick={() => { setSketch(null); setResult(null); }}
-                  className={`text-[10px] font-bold uppercase tracking-widest text-red-500 hover:opacity-70 transition-opacity ${!sketch && 'invisible'}`}
-                >
-                  Hapus
-                </button>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => toggleMode('upload')}
+                    className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'upload' ? 'text-black' : 'text-gray-300 hover:text-gray-400'}`}
+                  >
+                    01. Upload
+                  </button>
+                  <button 
+                    onClick={() => toggleMode('draw')}
+                    className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'draw' ? 'text-black' : 'text-gray-300 hover:text-gray-400'}`}
+                  >
+                    01. Gambar
+                  </button>
+                </div>
+                {inputMode === 'upload' && sketch && (
+                  <button 
+                    onClick={() => { setSketch(null); setResult(null); }}
+                    className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:opacity-70 transition-opacity"
+                  >
+                    Hapus
+                  </button>
+                )}
               </div>
-              <div className="flex-1 min-h-[250px]">
-                <UploadZone 
-                  onImageSelect={(b) => { setSketch(b); setResult(null); setError(null); }} 
-                  previewImage={sketch} 
-                />
+              
+              <div className="flex-1 min-h-[350px]">
+                {inputMode === 'upload' ? (
+                  <UploadZone 
+                    onImageSelect={(b) => { setSketch(b); setResult(null); setError(null); }} 
+                    previewImage={sketch} 
+                  />
+                ) : (
+                  <DrawingCanvas 
+                    onImageChange={(b) => setSketch(b)} 
+                    width={512} 
+                    height={512} 
+                  />
+                )}
               </div>
             </div>
 
             <div className="modern-card p-6">
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-6">02. Detail</h2>
               <textarea 
-                placeholder="Deskripsi tambahan (cth: armor mengkilap, latar futuristik)..."
+                placeholder="Deskripsi tambahan (cth: robot perak mengkilap, latar cyberpunk)..."
                 value={extraPrompt}
                 onChange={(e) => setExtraPrompt(e.target.value)}
                 className="w-full p-4 rounded-lg bg-gray-50 border border-transparent focus:border-black focus:bg-white transition-all outline-none text-xs min-h-[80px] resize-none"
@@ -126,21 +165,23 @@ const App: React.FC = () => {
                 ))}
               </div>
 
-              <div className="space-y-4 mt-auto">
-                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em]">Kategori Objek</label>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => setSelectedCategory(c.id)}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all border
-                        ${selectedCategory === c.id 
-                          ? 'bg-black text-white border-black' 
-                          : 'bg-white text-gray-400 border-gray-100 hover:border-black hover:text-black'}`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
+              <div className="space-y-6 mt-auto">
+                <div className="space-y-3">
+                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.15em]">Kategori Objek</label>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => setSelectedCategory(c.id)}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all border
+                          ${selectedCategory === c.id 
+                            ? 'bg-black text-white border-black' 
+                            : 'bg-white text-gray-400 border-gray-100 hover:border-black hover:text-black'}`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -156,10 +197,10 @@ const App: React.FC = () => {
               {isGenerating ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  Proses
+                  Proses Magic
                 </span>
               ) : (
-                'Generate'
+                'Generate Magic'
               )}
             </button>
           </div>
@@ -190,16 +231,17 @@ const App: React.FC = () => {
                 ) : (
                   <div className="text-center p-10 space-y-4 opacity-10">
                     <div className="w-20 h-20 border border-black rounded-full flex items-center justify-center mx-auto">
-                      <i className="fas fa-sparkles text-3xl"></i>
+                      <i className="fas fa-wand-magic-sparkles text-3xl"></i>
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em]">Ready for Magic</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em]">AI Image Generator</p>
                   </div>
                 )}
                 
                 {isGenerating && (
                   <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 z-20">
                     <div className="w-10 h-10 border border-black border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <h3 className="text-xs font-bold text-black uppercase tracking-[0.2em]">Memproses Imajinasi</h3>
+                    <h3 className="text-xs font-bold text-black uppercase tracking-[0.2em]">Sedang Memproses</h3>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Mewujudkan imajinasimu...</p>
                   </div>
                 )}
               </div>
@@ -220,11 +262,11 @@ const App: React.FC = () => {
 
         </div>
 
-        {/* History Section (Tambah juga fitur) */}
+        {/* History Section */}
         {history.length > 0 && (
           <div className="fade-in-up" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center gap-4 mb-8">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400">Recent Creations</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400">Kreasi Terakhir</h2>
               <div className="h-[1px] flex-1 bg-gray-100"></div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -236,7 +278,7 @@ const App: React.FC = () => {
                 >
                   <img src={item.resultImage} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={`History ${idx}`} />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-[8px] font-bold text-white uppercase tracking-widest">Lihat Hasil</span>
+                    <span className="text-[8px] font-bold text-white uppercase tracking-widest">Lihat</span>
                   </div>
                 </div>
               ))}
@@ -251,14 +293,15 @@ const App: React.FC = () => {
           <div className="bg-white w-full max-w-sm p-10 relative border border-black/5 shadow-2xl rounded-2xl animate-in zoom-in-95">
             <div className="text-center mb-10">
               <h3 className="text-xl font-extrabold text-black tracking-tight uppercase">Mefuya Magic</h3>
-              <p className="text-gray-400 text-[9px] font-bold tracking-[0.3em] uppercase mt-2">Versi 2025</p>
+              <p className="text-gray-400 text-[9px] font-bold tracking-[0.3em] uppercase mt-2">AI Sketch to Image</p>
             </div>
 
             <div className="space-y-6 mb-10">
               {[
-                { n: "01", t: "Unggah sketsa garis hitam" },
-                { n: "02", t: "Atur konfigurasi & gaya" },
-                { n: "03", t: "Generate mahakarya Anda" }
+                { n: "01", t: "Gambar sketsa atau upload gambar" },
+                { n: "02", t: "Tambahkan detail deskripsi" },
+                { n: "03", t: "Pilih gaya visual favoritmu" },
+                { n: "04", t: "Generate menjadi gambar nyata" }
               ].map((step, idx) => (
                 <div key={idx} className="flex items-center gap-4 group">
                   <span className="text-[10px] font-black text-gray-200 group-hover:text-black transition-colors">{step.n}</span>
@@ -271,7 +314,7 @@ const App: React.FC = () => {
               onClick={closeTutorial}
               className="w-full py-4 bg-black text-white font-bold text-xs uppercase tracking-widest modern-button shadow-xl shadow-black/10"
             >
-              Mulai Eksplorasi
+              Mulai Berkreasi
             </button>
           </div>
         </div>
@@ -282,7 +325,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4 tracking-[0.4em] uppercase">
             <span>&copy; 2025 MEFUYA ENTERTAINMENT</span>
             <span className="opacity-30">•</span>
-            <span>MODERN ELEGANCE</span>
+            <span>MAGIC STUDIO</span>
           </div>
         </div>
       </footer>
