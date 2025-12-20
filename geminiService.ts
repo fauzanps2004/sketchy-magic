@@ -68,8 +68,19 @@ export const transformSketch = async (
   const base64Data = match ? match[2] : base64Image.split(',')[1];
   
   let styleInstruction = `Style: ${style}.`;
-  if (style === StyleType.IPHONE) {
+  
+  if (style === StyleType.REALISTIC) {
+    styleInstruction = `Style: "Hyper-Realistic Photography". 
+    CRITICAL: This is NOT a 3D render, NOT CGI, and NOT digital art. 
+    Visual characteristics: RAW photo quality, shot on 8K UHD, high-end optical lens (Sony A7R IV, 85mm f/1.4), extreme macro details, natural skin pores, realistic hair follicles, intricate fabric textures, natural light scattering, subtle film grain, depth of field (bokeh). 
+    It must look like a National Geographic photograph. 
+    Avoid smooth, plastic, or "perfect" surfaces associated with 3D modeling.`;
+  } else if (style === StyleType.IPHONE) {
     styleInstruction = `Style: "Shot on iPhone 15 Pro Max". Authenticity is key. Visual characteristics: high dynamic range (HDR), slightly saturated primary colors, natural skin tones with warmth, sharp details in focus with soft digital bokeh (Portrait Mode vibe), mobile computational photography look, clean lens flare if sun is present, handheld photo aesthetic. The image should look like it was captured by a smartphone camera in real life.`;
+  } else if (style === StyleType.ANIME) {
+    styleInstruction = `Style: High-quality modern Anime aesthetic. Characteristics: vibrant and saturated colors, clean and sharp line art, beautiful atmospheric lighting, cel-shading with smooth gradients, high-quality digital illustration vibe, similar to Studio Ghibli or Makoto Shinkai films. Detailed backgrounds with cinematic depth.`;
+  } else if (style === StyleType.COMIC) {
+    styleInstruction = `Style: Vintage 1960s American Comic Book. Characteristics: Ben-Day dots for shading, limited color palette (classic inks), bold black ink outlines, slightly aged paper texture, gritty feel, dynamic action-oriented composition, pulp fiction aesthetic, retro print artifacts.`;
   }
   
   const prompt = `Advanced Image Transformation from Sketch.
