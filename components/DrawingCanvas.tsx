@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 
 interface DrawingCanvasProps {
   onImageChange: (base64: string) => void;
@@ -10,6 +10,8 @@ interface DrawingCanvasProps {
 export interface DrawingCanvasRef {
   clear: () => void;
   setImage: (base64: string) => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImageChange, width, height }, ref) => {
@@ -20,6 +22,29 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
   const [lineWidth, setLineWidth] = useState(3);
   const [isEraser, setIsEraser] = useState(false);
   const [isCursorVisible, setIsCursorVisible] = useState(false);
+
+  // Undo/Redo states
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const saveToHistory = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1);
+      const updated = [...newHistory, dataUrl];
+      // Limit history to 50 steps
+      if (updated.length > 50) updated.shift();
+      return updated;
+    });
+    setHistoryIndex(prev => {
+      const next = prev + 1;
+      return next >= 50 ? 49 : next;
+    });
+    onImageChange(dataUrl);
+  }, [historyIndex, onImageChange]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -32,11 +57,47 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
     
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
+
+    // Initial state
+    const initialData = canvas.toDataURL('image/png');
+    setHistory([initialData]);
+    setHistoryIndex(0);
   }, []);
+
+  const restoreFromHistory = (index: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !history[index]) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      onImageChange(canvas.toDataURL('image/png'));
+    };
+    img.src = history[index];
+    setHistoryIndex(index);
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      restoreFromHistory(historyIndex - 1);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      restoreFromHistory(historyIndex + 1);
+    }
+  };
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
     clear: clearCanvas,
+    undo,
+    redo,
     setImage: (base64: string) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -47,7 +108,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
       img.onload = () => {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        // Draw image keeping aspect ratio but fitting the canvas
         const hRatio = canvas.width / img.width;
         const vRatio = canvas.height / img.height;
         const ratio = Math.min(hRatio, vRatio);
@@ -55,7 +115,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
         const centerShift_y = (canvas.height - img.height * ratio) / 2;
         ctx.drawImage(img, 0, 0, img.width, img.height, 
                            centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
-        onImageChange(canvas.toDataURL('image/png'));
+        saveToHistory();
       };
       img.src = base64;
     }
@@ -130,10 +190,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
   const stopDrawing = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    const canvas = canvasRef.current;
-    if (canvas) {
-      onImageChange(canvas.toDataURL('image/png'));
-    }
+    saveToHistory();
   };
 
   const draw = (coords: { x: number, y: number }) => {
@@ -152,7 +209,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
     if (!ctx) return;
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    onImageChange("");
+    saveToHistory();
   };
 
   const selectColor = (newColor: string) => {
@@ -183,6 +240,25 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
             </div>
           </div>
           
+          <div className="flex items-center gap-1">
+             <button 
+               onClick={undo} 
+               disabled={historyIndex <= 0}
+               className="w-8 h-8 rounded-full flex items-center justify-center text-xs transition-colors hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-20"
+               title="Undo (Ctrl+Z)"
+             >
+               <i className="fas fa-undo"></i>
+             </button>
+             <button 
+               onClick={redo} 
+               disabled={historyIndex >= history.length - 1}
+               className="w-8 h-8 rounded-full flex items-center justify-center text-xs transition-colors hover:bg-black/5 dark:hover:bg-white/5 disabled:opacity-20"
+               title="Redo (Ctrl+Y)"
+             >
+               <i className="fas fa-redo"></i>
+             </button>
+          </div>
+
           <div className="h-8 w-[1px] bg-gray-200 dark:bg-neutral-600 mx-2"></div>
 
           <div className="flex items-center gap-3 flex-1">

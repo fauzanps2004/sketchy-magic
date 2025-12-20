@@ -166,14 +166,14 @@ const App: React.FC = () => {
               {isSketching && (
                 <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 transition-all animate-in fade-in">
                   <div className="w-12 h-12 border-2 border-t-white border-white/20 rounded-full animate-spin mb-4"></div>
-                  <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white text-center">AI Sedang Melukis Sketsa Presisi...</h4>
+                  <h4 className="text-xs font-black uppercase tracking-[0.3em] text-white text-center">Melukis Sketsa Presisi...</h4>
                 </div>
               )}
 
               <div className="flex items-center justify-between mb-6">
                 <div className="flex gap-4">
-                  <button onClick={() => setInputMode('upload')} className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'upload' ? (isDarkMode ? 'text-white' : 'text-black') : 'text-gray-400 hover:text-gray-500'}`}>01. Upload</button>
-                  <button onClick={() => setInputMode('draw')} className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'draw' ? (isDarkMode ? 'text-white' : 'text-black') : 'text-gray-400 hover:text-gray-500'}`}>01. Gambar</button>
+                  <button onClick={() => setInputMode('upload')} className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'upload' ? (isDarkMode ? 'text-white' : 'text-black') : 'text-gray-400 hover:text-gray-500'}`}>Upload</button>
+                  <button onClick={() => setInputMode('draw')} className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'draw' ? (isDarkMode ? 'text-white' : 'text-black') : 'text-gray-400 hover:text-gray-500'}`}>Gambar</button>
                 </div>
                 <button
                   onClick={toggleListeningSketch}
@@ -183,7 +183,7 @@ const App: React.FC = () => {
                       : (isDarkMode ? 'bg-neutral-800 text-blue-400' : 'bg-blue-50 text-blue-600')}`}
                 >
                   <i className={`fas ${isListeningSketch ? 'fa-stop' : 'fa-wand-magic-sparkles'}`}></i>
-                  {isListeningSketch ? 'Mendengarkan...' : 'Voice Sketch'}
+                  {isListeningSketch ? 'Listening...' : 'Voice Sketch'}
                 </button>
               </div>
               
@@ -198,7 +198,7 @@ const App: React.FC = () => {
 
             <div className="modern-card p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">02. Detail Final</h2>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Detail Final</h2>
                 <button
                   onClick={toggleListeningDetails}
                   className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all
@@ -221,7 +221,7 @@ const App: React.FC = () => {
 
           <div className="lg:col-span-3 flex flex-col gap-8">
             <div className="modern-card p-6 flex-1 flex flex-col">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-6">03. Gaya Visual</h2>
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-6">Gaya Visual</h2>
               <div className="grid grid-cols-2 gap-3 mb-8">
                 {STYLES.map(s => <StyleCard key={s.id} {...s} isSelected={selectedStyle === s.id} onSelect={setSelectedStyle} />)}
               </div>
@@ -300,7 +300,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-xl">
           <div className={`w-full max-w-sm p-10 relative border shadow-2xl rounded-2xl ${isDarkMode ? 'bg-neutral-900 border-neutral-700 text-white' : 'bg-white border-black/5 text-black'}`}>
             <h3 className="text-xl font-extrabold uppercase mb-6 text-center">Wallpaper Magic</h3>
-            <p className="text-xs font-medium leading-relaxed mb-10">Pake <b>Voice Sketch</b> di area canvas biar AI gambarin pondasi anatomi karakter yang akurat buat lo.</p>
+            <p className="text-xs font-medium leading-relaxed mb-10">Gunakan <b>Voice Sketch</b> biar AI gambarin pondasi anatomi karakter yang akurat buat lo.</p>
             <button onClick={() => setShowTutorial(false)} className={`w-full py-4 font-bold text-xs uppercase modern-button ${isDarkMode ? 'bg-white text-black' : 'bg-black text-white'}`}>Mulai</button>
           </div>
         </div>
