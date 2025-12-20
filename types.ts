@@ -7,7 +7,9 @@ export enum StyleType {
   FANTASY = 'Epic Fantasy',
   IPHONE = 'Shot on iPhone',
   ANIME = 'Modern Anime',
-  COMIC = 'Vintage Comic'
+  COMIC = 'Vintage Comic',
+  WATERCOLOR = 'Water Color Painting',
+  KIDS_DRAWING = 'Children Scribble'
 }
 
 export enum CategoryType {

@@ -81,6 +81,10 @@ export const transformSketch = async (
     styleInstruction = `Style: High-quality modern Anime aesthetic. Characteristics: vibrant and saturated colors, clean and sharp line art, beautiful atmospheric lighting, cel-shading with smooth gradients, high-quality digital illustration vibe, similar to Studio Ghibli or Makoto Shinkai films. Detailed backgrounds with cinematic depth.`;
   } else if (style === StyleType.COMIC) {
     styleInstruction = `Style: Vintage 1960s American Comic Book. Characteristics: Ben-Day dots for shading, limited color palette (classic inks), bold black ink outlines, slightly aged paper texture, gritty feel, dynamic action-oriented composition, pulp fiction aesthetic, retro print artifacts.`;
+  } else if (style === StyleType.WATERCOLOR) {
+    styleInstruction = `Style: Professional Artistic Watercolor Painting. Characteristics: soft, fluid, and transparent brushstrokes, beautiful color bleeding and wet-on-wet washes, visible cold-pressed paper texture, delicate hand-painted aesthetic, translucent layers of pigment, artistic drips and splatters, natural pigment granulations. It should feel expressive, high-end, and traditionally crafted.`;
+  } else if (style === StyleType.KIDS_DRAWING) {
+    styleInstruction = `Style: Naive Children's Scribble. Characteristics: drawn with wax crayons and thick markers, messy and wobbly lines, bright and primary colors, coloring that slightly goes outside the lines, simple and adorable aesthetic. The background should be a piece of white school paper, perhaps with some minor crinkles or sun drawings in the corner. It should look like a masterpiece drawn by a talented 5-year-old child.`;
   }
   
   const prompt = `Advanced Image Transformation from Sketch.
