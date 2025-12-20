@@ -35,7 +35,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1);
       const updated = [...newHistory, dataUrl];
-      // Limit history to 50 steps
       if (updated.length > 50) updated.shift();
       return updated;
     });
@@ -58,15 +57,14 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Initial state
     const initialData = canvas.toDataURL('image/png');
     setHistory([initialData]);
     setHistoryIndex(0);
   }, []);
 
-  const restoreFromHistory = (index: number) => {
+  const restoreFromHistory = useCallback((index: number) => {
     const canvas = canvasRef.current;
-    if (!canvas || !history[index]) return;
+    if (!canvas || index < 0 || !history[index]) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -79,21 +77,32 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
     };
     img.src = history[index];
     setHistoryIndex(index);
-  };
+  }, [history, onImageChange]);
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      restoreFromHistory(historyIndex - 1);
-    }
-  };
+  const undo = useCallback(() => {
+    if (historyIndex > 0) restoreFromHistory(historyIndex - 1);
+  }, [historyIndex, restoreFromHistory]);
 
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      restoreFromHistory(historyIndex + 1);
-    }
-  };
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) restoreFromHistory(historyIndex + 1);
+  }, [historyIndex, history.length, restoreFromHistory]);
 
-  // Expose methods to parent
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
   useImperativeHandle(ref, () => ({
     clear: clearCanvas,
     undo,
@@ -174,9 +183,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImag
     if (!ctx) return;
 
     const pos = getMousePos(e);
-    if (cursorRef.current) {
-      cursorRef.current.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
-    }
     setIsCursorVisible(true);
 
     const canvasPos = getCanvasPos(pos.x, pos.y);

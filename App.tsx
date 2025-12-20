@@ -8,6 +8,70 @@ import UploadZone from './components/UploadZone';
 import StyleCard from './components/StyleCard';
 import DrawingCanvas, { DrawingCanvasRef } from './components/DrawingCanvas';
 
+// IndexedDB Helper for Large Binary/Base64 Data
+const DB_NAME = 'WallpaperMagicDB';
+const STORE_NAME = 'history';
+const DB_VERSION = 1;
+
+const initDB = (): Promise<IDBDatabase> => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'timestamp' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const getHistoryFromDB = async (): Promise<TransformationResult[]> => {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        // Sort by timestamp descending
+        const results = (request.result as TransformationResult[]).sort((a, b) => b.timestamp - a.timestamp);
+        resolve(results.slice(0, 5)); // Keep only latest 5 in state
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.error('Failed to load history from DB', e);
+    return [];
+  }
+};
+
+const saveItemToDB = async (item: TransformationResult) => {
+  try {
+    const db = await initDB();
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    store.put(item);
+    
+    // Clean up old items (optional, keeping DB tidy)
+    const countRequest = store.count();
+    countRequest.onsuccess = () => {
+      if (countRequest.result > 10) {
+        const cursorRequest = store.openCursor();
+        cursorRequest.onsuccess = (e: any) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            cursor.delete(); // Delete oldest
+          }
+        };
+      }
+    };
+  } catch (e) {
+    console.error('Failed to save to DB', e);
+  }
+};
+
 const App: React.FC = () => {
   const [sketch, setSketch] = useState<string | null>(null);
   const [results, setResults] = useState<GeneratedImages | null>(null);
@@ -48,8 +112,9 @@ const App: React.FC = () => {
     }
     const hasSeenTutorial = localStorage.getItem('mefuya_tutorial_seen');
     if (!hasSeenTutorial) setShowTutorial(true);
-    const savedHistory = localStorage.getItem('mefuya_history');
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
+    
+    // Load history from IndexedDB
+    getHistoryFromDB().then(setHistory);
   }, []);
 
   useEffect(() => {
@@ -146,12 +211,21 @@ const App: React.FC = () => {
     localStorage.setItem('mefuya_theme', newMode ? 'dark' : 'light');
   };
 
-  const saveToHistory = (newResults: GeneratedImages) => {
+  const saveToHistory = async (newResults: GeneratedImages) => {
     if (!sketch) return;
-    const item = { originalImage: sketch, results: newResults, style: selectedStyle, category: selectedCategory, timestamp: Date.now() };
-    const updatedHistory = [item, ...history].slice(0, 3);
-    setHistory(updatedHistory);
-    localStorage.setItem('mefuya_history', JSON.stringify(updatedHistory));
+    const item: TransformationResult = { 
+      originalImage: sketch, 
+      results: newResults, 
+      style: selectedStyle, 
+      category: selectedCategory, 
+      timestamp: Date.now() 
+    };
+    
+    // Update local state (UI)
+    setHistory(prev => [item, ...prev].slice(0, 5));
+    
+    // Persist to IndexedDB instead of localStorage
+    await saveItemToDB(item);
   };
 
   return (
@@ -183,7 +257,7 @@ const App: React.FC = () => {
                       : (isDarkMode ? 'bg-neutral-800 text-blue-400' : 'bg-blue-50 text-blue-600')}`}
                 >
                   <i className={`fas ${isListeningSketch ? 'fa-stop' : 'fa-wand-magic-sparkles'}`}></i>
-                  {isListeningSketch ? 'Listening...' : 'Voice Sketch'}
+                  {isListeningSketch ? 'Mendengarkan...' : 'Voice Sketch'}
                 </button>
               </div>
               

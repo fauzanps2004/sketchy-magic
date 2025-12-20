@@ -13,7 +13,6 @@ export const generateAIsimpleSketch = async (promptText: string): Promise<string
 
   const ai = aiInstance();
   
-  // Prompt yang lebih teknis untuk akurasi karakter
   const systemPrompt = `Task: Professional Character/Object Underdrawing.
     Subject: ${promptText}.
     
@@ -68,15 +67,20 @@ export const transformSketch = async (
   const mimeType = match ? match[1] : 'image/png';
   const base64Data = match ? match[2] : base64Image.split(',')[1];
   
+  let styleInstruction = `Style: ${style}.`;
+  if (style === StyleType.IPHONE) {
+    styleInstruction = `Style: "Shot on iPhone 15 Pro Max". Authenticity is key. Visual characteristics: high dynamic range (HDR), slightly saturated primary colors, natural skin tones with warmth, sharp details in focus with soft digital bokeh (Portrait Mode vibe), mobile computational photography look, clean lens flare if sun is present, handheld photo aesthetic. The image should look like it was captured by a smartphone camera in real life.`;
+  }
+  
   const prompt = `Advanced Image Transformation from Sketch.
     Target Object: ${category}.
-    Style: ${style}. 
+    ${styleInstruction}
     Details: ${promptExtra || '8k resolution, cinematic lighting, masterpiece.'}
     
     STRICT COMPLIANCE RULES:
     1. POSE & STRUCTURE: You MUST strictly follow the anatomical structure, pose, and silhouette of the input sketch.
-    2. CHARACTER IDENTITY: If this is a character, the facial structure and proportions from the sketch are the absolute ground truth. Do not invent new poses.
-    3. TEXTURE: Replace pencil lines with photorealistic ${style} materials (skin, metal, cloth, etc.).
+    2. CHARACTER IDENTITY: If this is a character, the facial structure and proportions from the sketch are the absolute ground truth.
+    3. TEXTURE: Replace pencil lines with high-quality ${style} materials.
     4. BACKGROUND: Integrate the subject into a fitting environment based on the style.`;
 
   try {

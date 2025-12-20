@@ -3,6 +3,7 @@ import { StyleType, CategoryType } from './types';
 
 export const STYLES = [
   { id: StyleType.REALISTIC, label: 'Foto Nyata', icon: 'fa-camera', description: 'Hasil seperti foto asli' },
+  { id: StyleType.IPHONE, label: 'Kamera iPhone', icon: 'fa-mobile-screen-button', description: 'Hasil jepretan iPhone 15 Pro' },
   { id: StyleType.CINEMATIC, label: 'Ala Film', icon: 'fa-film', description: 'Visual epik layar lebar' },
   { id: StyleType.DARK, label: 'Misterius', icon: 'fa-moon', description: 'Gelap dan penuh drama' },
   { id: StyleType.SCIFI, label: 'Masa Depan', icon: 'fa-rocket', description: 'Tema robot & teknologi' },

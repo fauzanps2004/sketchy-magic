@@ -4,7 +4,8 @@ export enum StyleType {
   CINEMATIC = 'Cinematic',
   DARK = 'Dark Fantasy',
   SCIFI = 'Sci-Fi / Cyberpunk',
-  FANTASY = 'Epic Fantasy'
+  FANTASY = 'Epic Fantasy',
+  IPHONE = 'Shot on iPhone'
 }
 
 export enum CategoryType {
