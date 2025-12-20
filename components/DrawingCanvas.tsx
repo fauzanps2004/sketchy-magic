@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 
 interface DrawingCanvasProps {
   onImageChange: (base64: string) => void;
@@ -7,7 +7,12 @@ interface DrawingCanvasProps {
   height: number;
 }
 
-const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, height }) => {
+export interface DrawingCanvasRef {
+  clear: () => void;
+  setImage: (base64: string) => void;
+}
+
+const DrawingCanvas = forwardRef<DrawingCanvasRef, DrawingCanvasProps>(({ onImageChange, width, height }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -22,7 +27,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set white background initially (Keep it white for the AI model)
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
@@ -30,7 +34,33 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
     ctx.lineJoin = 'round';
   }, []);
 
-  // Mendapatkan posisi mouse relatif terhadap elemen canvas (CSS Pixels)
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    clear: clearCanvas,
+    setImage: (base64: string) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const img = new Image();
+      img.onload = () => {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Draw image keeping aspect ratio but fitting the canvas
+        const hRatio = canvas.width / img.width;
+        const vRatio = canvas.height / img.height;
+        const ratio = Math.min(hRatio, vRatio);
+        const centerShift_x = (canvas.width - img.width * ratio) / 2;
+        const centerShift_y = (canvas.height - img.height * ratio) / 2;
+        ctx.drawImage(img, 0, 0, img.width, img.height, 
+                           centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
+        onImageChange(canvas.toDataURL('image/png'));
+      };
+      img.src = base64;
+    }
+  }));
+
   const getMousePos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -51,32 +81,21 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
     };
   };
 
-  // Konversi CSS Pixels ke Canvas Bitmap Pixels (memperhitungkan scaling)
   const getCanvasPos = (cssX: number, cssY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    
-    // Hitung rasio scaling (misal canvas 512px ditampilkan dalam 300px)
     const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
     const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
-    
-    return {
-      x: cssX * scaleX,
-      y: cssY * scaleY
-    };
+    return { x: cssX * scaleX, y: cssY * scaleY };
   };
 
   const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
     const pos = getMousePos(e);
-    
-    // Update posisi visual cursor secara langsung (tanpa re-render React) untuk performa
     if (cursorRef.current) {
       cursorRef.current.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
     }
-
     if (!isCursorVisible) setIsCursorVisible(true);
-
     if (isDrawing) {
       const canvasPos = getCanvasPos(pos.x, pos.y);
       draw(canvasPos);
@@ -94,7 +113,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Update cursor pos immediately
     const pos = getMousePos(e);
     if (cursorRef.current) {
       cursorRef.current.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
@@ -102,12 +120,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
     setIsCursorVisible(true);
 
     const canvasPos = getCanvasPos(pos.x, pos.y);
-    
     ctx.beginPath();
     ctx.moveTo(canvasPos.x, canvasPos.y);
     ctx.strokeStyle = isEraser ? '#ffffff' : color;
     ctx.lineWidth = lineWidth;
-    
     setIsDrawing(true);
   };
 
@@ -125,7 +141,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     ctx.lineTo(coords.x, coords.y);
     ctx.stroke();
   };
@@ -148,7 +163,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-col gap-3 p-4 rounded-lg border transition-colors bg-gray-50 border-gray-100 dark:bg-neutral-800 dark:border-neutral-700">
-        {/* Color Selection & Thickness */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div 
@@ -184,7 +198,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
           </div>
         </div>
         
-        {/* Tools */}
         <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200/50 dark:border-neutral-700 mt-1">
           <button 
             onClick={() => setIsEraser(!isEraser)}
@@ -207,10 +220,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
         </div>
       </div>
       
-      {/* Container Canvas dengan Cursor Custom */}
       <div className="flex-1 min-h-[300px] bg-white rounded-xl border border-gray-200 dark:border-neutral-700 overflow-hidden relative shadow-inner group touch-none">
-        
-        {/* Custom Cursor Overlay */}
         <div 
           ref={cursorRef}
           className="pointer-events-none absolute top-0 left-0 z-50 flex items-center justify-center rounded-full border border-black/20 will-change-transform"
@@ -247,7 +257,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
           className="w-full h-full cursor-none block" 
         />
         
-        {/* Label Mode di pojok */}
         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none z-10">
           <div className="bg-black/5 backdrop-blur-sm px-2 py-1 rounded text-[8px] font-bold uppercase tracking-widest text-gray-500">
             {isEraser ? 'Mode Penghapus' : 'Mode Gambar'}
@@ -256,6 +265,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ onImageChange, width, hei
       </div>
     </div>
   );
-};
+});
 
 export default DrawingCanvas;
