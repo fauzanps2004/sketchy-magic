@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleType, CategoryType, TransformationResult, GeneratedImages } from './types';
 import { STYLES, CATEGORIES } from './constants';
 import { transformSketch } from './geminiService';
@@ -10,8 +10,6 @@ import DrawingCanvas from './components/DrawingCanvas';
 
 const App: React.FC = () => {
   const [sketch, setSketch] = useState<string | null>(null);
-  
-  // State results sekarang menyimpan object { square, portrait, landscape }
   const [results, setResults] = useState<GeneratedImages | null>(null);
   const [activeTab, setActiveTab] = useState<'square' | 'portrait' | 'landscape'>('square');
 
@@ -25,10 +23,41 @@ const App: React.FC = () => {
   const [inputMode, setInputMode] = useState<'upload' | 'draw'>('upload');
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   
+  // Speech to Text States
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
+    // Initialize Speech Recognition
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'id-ID'; // Default to Indonesian
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setExtraPrompt(prev => prev ? `${prev} ${transcript}` : transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech Recognition Error:", event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          setError("Izin mikrofon ditolak. Silakan aktifkan di pengaturan browser.");
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
     // Load Dark Mode Preference
     const savedTheme = localStorage.getItem('mefuya_theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -56,6 +85,26 @@ const App: React.FC = () => {
       }
     }
   }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      setError("Browser Anda tidak mendukung fitur Speech-to-Text.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        setError(null);
+      } catch (e) {
+        console.error("Recognition already started", e);
+      }
+    }
+  };
 
   const toggleTheme = () => {
     const newMode = !isDarkMode;
@@ -88,20 +137,15 @@ const App: React.FC = () => {
       timestamp: Date.now()
     };
 
-    // Update state React (selalu berhasil untuk sesi ini)
     const updatedHistory = [item, ...history].slice(0, 3);
     setHistory(updatedHistory);
 
-    // Coba simpan ke localStorage (bisa gagal karena kuota)
     try {
       localStorage.setItem('mefuya_history', JSON.stringify(updatedHistory));
     } catch (e: any) {
-      // Jika penuh, coba simpan hanya item terakhir
       try {
         localStorage.setItem('mefuya_history', JSON.stringify([item]));
       } catch (retryError) {
-        // Jika masih penuh (misal gambar terlalu besar), bersihkan history di storage
-        // agar tidak menyebabkan error berkelanjutan, tapi tetap biarkan state React aktif.
         console.warn("Storage full. History hanya tersedia untuk sesi ini.");
         localStorage.removeItem('mefuya_history');
       }
@@ -116,11 +160,9 @@ const App: React.FC = () => {
 
     setIsGenerating(true);
     setError(null);
-    setResults(null); // Reset hasil sebelumnya saat mulai baru
+    setResults(null);
 
     try {
-      // Jalankan 3 request secara paralel menggunakan Promise.all
-      // Note: Seed dihapus karena menyebabkan error pada model gemini-2.5-flash-image
       const [sq, pt, ls] = await Promise.all([
         transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt, "1:1"),
         transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt, "9:16"),
@@ -134,7 +176,7 @@ const App: React.FC = () => {
       };
 
       setResults(newResults);
-      setActiveTab('square'); // Default view ke square
+      setActiveTab('square');
       saveToHistory(newResults);
     } catch (err: any) {
       setError(err.message || "Gagal menghasilkan gambar. Coba lagi.");
@@ -150,7 +192,6 @@ const App: React.FC = () => {
     setError(null);
   };
 
-  // Helper untuk mendapatkan gambar yang sedang aktif
   const getActiveImage = () => {
     if (!results) return null;
     return results[activeTab];
@@ -208,16 +249,29 @@ const App: React.FC = () => {
             </div>
 
             <div className="modern-card p-6">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-6">02. Detail</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">02. Detail</h2>
+                <button
+                  onClick={toggleListening}
+                  className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all
+                    ${isListening 
+                      ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/20' 
+                      : (isDarkMode ? 'bg-neutral-800 text-gray-400 hover:text-white' : 'bg-gray-50 text-gray-400 hover:text-black')}`}
+                >
+                  <i className={`fas ${isListening ? 'fa-stop' : 'fa-microphone'}`}></i>
+                  {isListening ? 'Mendengarkan...' : 'Voice Input'}
+                </button>
+              </div>
               <textarea 
                 placeholder="Deskripsi tambahan (cth: robot perak mengkilap, latar cyberpunk)..."
                 value={extraPrompt}
                 onChange={(e) => setExtraPrompt(e.target.value)}
-                className={`w-full p-4 rounded-lg border border-transparent transition-all outline-none text-xs min-h-[80px] resize-none
+                className={`w-full p-4 rounded-lg border border-transparent transition-all outline-none text-xs min-h-[100px] resize-none
                   ${isDarkMode 
                     ? 'bg-neutral-800 focus:bg-neutral-900 focus:border-white text-gray-200 placeholder-gray-600' 
                     : 'bg-gray-50 focus:bg-white focus:border-black text-black placeholder-gray-400'}`}
               />
+              <p className="text-[8px] text-gray-400 mt-2 uppercase tracking-widest text-right">Mendukung ID & EN</p>
             </div>
           </div>
 
@@ -286,7 +340,6 @@ const App: React.FC = () => {
           <div className="lg:col-span-5 flex flex-col">
             <div className="modern-card p-2 flex-1 relative overflow-hidden flex flex-col">
               
-              {/* Tab Selector - Only show if we have results */}
               {results && (
                 <div className={`flex items-center p-2 mb-2 rounded-lg gap-2 ${isDarkMode ? 'bg-neutral-900' : 'bg-gray-50'}`}>
                     {[
@@ -314,7 +367,7 @@ const App: React.FC = () => {
                 {results ? (
                   <div className="w-full h-full p-2 flex items-center justify-center fade-in-up relative group/result">
                     <img 
-                      key={activeTab} // Force re-render on tab change for animation
+                      key={activeTab} 
                       src={getActiveImage()!} 
                       alt={`Magic Result ${activeTab}`} 
                       onClick={() => setFullScreenImage(getActiveImage()!)}
@@ -389,7 +442,6 @@ const App: React.FC = () => {
                     setActiveTab('square');
                   }}
                 >
-                  {/* Gunakan gambar square sebagai thumbnail */}
                   <img src={item.results.square} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={`History ${idx}`} />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <span className="text-[8px] font-bold text-white uppercase tracking-widest">Buka</span>
@@ -408,7 +460,6 @@ const App: React.FC = () => {
           onClick={() => setFullScreenImage(null)}
         >
           <div className="relative w-full h-full flex items-center justify-center">
-             {/* Close Button */}
             <button 
               onClick={() => setFullScreenImage(null)}
               className="absolute top-0 right-0 p-4 text-white/50 hover:text-white transition-colors z-50"
