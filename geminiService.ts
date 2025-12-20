@@ -84,7 +84,8 @@ export const transformSketch = async (
   } else if (style === StyleType.WATERCOLOR) {
     styleInstruction = `Style: Professional Artistic Watercolor Painting. Characteristics: soft, fluid, and transparent brushstrokes, beautiful color bleeding and wet-on-wet washes, visible cold-pressed paper texture, delicate hand-painted aesthetic, translucent layers of pigment, artistic drips and splatters, natural pigment granulations. It should feel expressive, high-end, and traditionally crafted.`;
   } else if (style === StyleType.KIDS_DRAWING) {
-    styleInstruction = `Style: Naive Children's Scribble. Characteristics: drawn with wax crayons and thick markers, messy and wobbly lines, bright and primary colors, coloring that slightly goes outside the lines, simple and adorable aesthetic. The background should be a piece of white school paper, perhaps with some minor crinkles or sun drawings in the corner. It should look like a masterpiece drawn by a talented 5-year-old child.`;
+    styleInstruction = `Style: Naive Children's Scribble. Characteristics: drawn with wax crayons and thick markers, messy and wobbly lines, bright and primary colors, coloring that slightly goes outside the lines, simple and adorable aesthetic. The background should be a plain piece of white paper. 
+    CRITICAL: Strictly adhere to the content of the reference image. Do NOT add any extra objects, symbols, or background elements (like suns, clouds, grass, or additional scribbles) that are not present in the original sketch. Focus entirely on coloring the existing sketch elements using a child-like crayon style.`;
   }
   
   const prompt = `Advanced Image Transformation from Sketch.
