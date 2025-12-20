@@ -19,8 +19,23 @@ const App: React.FC = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [history, setHistory] = useState<TransformationResult[]>([]);
   const [inputMode, setInputMode] = useState<'upload' | 'draw'>('upload');
+  
+  // Dark Mode State
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
+    // Load Dark Mode Preference
+    const savedTheme = localStorage.getItem('mefuya_theme');
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
+
     const hasSeenTutorial = localStorage.getItem('mefuya_tutorial_seen');
     if (!hasSeenTutorial) {
       setShowTutorial(true);
@@ -32,13 +47,30 @@ const App: React.FC = () => {
         setHistory(JSON.parse(savedHistory));
       } catch (e) {
         console.error("Failed to load history", e);
+        localStorage.removeItem('mefuya_history');
       }
     }
   }, []);
 
+  const toggleTheme = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    if (newMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('mefuya_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('mefuya_theme', 'light');
+    }
+  };
+
   const closeTutorial = () => {
     setShowTutorial(false);
-    localStorage.setItem('mefuya_tutorial_seen', 'true');
+    try {
+      localStorage.setItem('mefuya_tutorial_seen', 'true');
+    } catch (e) {
+      console.warn("Could not save tutorial preference");
+    }
   };
 
   const saveToHistory = (newResult: string) => {
@@ -50,9 +82,22 @@ const App: React.FC = () => {
       category: selectedCategory,
       timestamp: Date.now()
     };
-    const updatedHistory = [item, ...history].slice(0, 10);
+
+    let updatedHistory = [item, ...history].slice(0, 3);
     setHistory(updatedHistory);
-    localStorage.setItem('mefuya_history', JSON.stringify(updatedHistory));
+
+    try {
+      localStorage.setItem('mefuya_history', JSON.stringify(updatedHistory));
+    } catch (e: any) {
+      console.warn("Storage quota warning:", e);
+      try {
+        updatedHistory = [item];
+        setHistory(updatedHistory);
+        localStorage.setItem('mefuya_history', JSON.stringify(updatedHistory));
+      } catch (retryError) {
+        console.error("Storage full. History not saved to local storage.");
+      }
+    }
   };
 
   const handleTransform = async () => {
@@ -88,10 +133,10 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white selection:bg-black selection:text-white">
-      <Header />
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? 'bg-neutral-950 text-white selection:bg-white selection:text-black' : 'bg-white text-black selection:bg-black selection:text-white'}`}>
+      <Header isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
       
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 pb-12 overflow-hidden flex flex-col">
+      <main className="flex-1 max-w-6xl mx-auto w-full px-6 pb-12 flex flex-col">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch flex-1 mb-16">
           
           {/* Section: Source */}
@@ -101,13 +146,13 @@ const App: React.FC = () => {
                 <div className="flex gap-4">
                   <button 
                     onClick={() => toggleMode('upload')}
-                    className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'upload' ? 'text-black' : 'text-gray-300 hover:text-gray-400'}`}
+                    className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'upload' ? (isDarkMode ? 'text-white' : 'text-black') : 'text-gray-400 hover:text-gray-500'}`}
                   >
                     01. Upload
                   </button>
                   <button 
                     onClick={() => toggleMode('draw')}
-                    className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'draw' ? 'text-black' : 'text-gray-300 hover:text-gray-400'}`}
+                    className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${inputMode === 'draw' ? (isDarkMode ? 'text-white' : 'text-black') : 'text-gray-400 hover:text-gray-500'}`}
                   >
                     01. Gambar
                   </button>
@@ -144,7 +189,10 @@ const App: React.FC = () => {
                 placeholder="Deskripsi tambahan (cth: robot perak mengkilap, latar cyberpunk)..."
                 value={extraPrompt}
                 onChange={(e) => setExtraPrompt(e.target.value)}
-                className="w-full p-4 rounded-lg bg-gray-50 border border-transparent focus:border-black focus:bg-white transition-all outline-none text-xs min-h-[80px] resize-none"
+                className={`w-full p-4 rounded-lg border border-transparent transition-all outline-none text-xs min-h-[80px] resize-none
+                  ${isDarkMode 
+                    ? 'bg-neutral-800 focus:bg-neutral-900 focus:border-white text-gray-200 placeholder-gray-600' 
+                    : 'bg-gray-50 focus:bg-white focus:border-black text-black placeholder-gray-400'}`}
               />
             </div>
           </div>
@@ -175,8 +223,10 @@ const App: React.FC = () => {
                         onClick={() => setSelectedCategory(c.id)}
                         className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all border
                           ${selectedCategory === c.id 
-                            ? 'bg-black text-white border-black' 
-                            : 'bg-white text-gray-400 border-gray-100 hover:border-black hover:text-black'}`}
+                            ? (isDarkMode ? 'bg-white text-black border-white' : 'bg-black text-white border-black') 
+                            : (isDarkMode 
+                                ? 'bg-neutral-900 text-gray-400 border-neutral-800 hover:border-white hover:text-white' 
+                                : 'bg-white text-gray-400 border-gray-100 hover:border-black hover:text-black')}`}
                       >
                         {c.label}
                       </button>
@@ -188,15 +238,18 @@ const App: React.FC = () => {
 
             <button
               onClick={handleTransform}
-              disabled={isGenerating || !sketch}
-              className={`w-full py-5 modern-button text-sm uppercase tracking-widest transition-all
-                ${isGenerating || !sketch 
-                  ? 'bg-gray-100 text-gray-300' 
-                  : 'bg-black text-white hover:bg-gray-900 shadow-xl shadow-black/5'}`}
+              disabled={isGenerating}
+              className={`w-full py-5 modern-button text-sm uppercase tracking-widest transition-all shadow-xl
+                ${isGenerating
+                  ? 'bg-gray-100 dark:bg-neutral-800 text-gray-300 dark:text-gray-600 cursor-wait' 
+                  : (isDarkMode 
+                      ? 'bg-white text-black hover:bg-gray-200 shadow-white/5' 
+                      : 'bg-black text-white hover:bg-gray-900 shadow-black/5')}
+                  hover:scale-[1.02] active:scale-[0.98]`}
             >
               {isGenerating ? (
                 <span className="flex items-center justify-center gap-2">
-                  <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  <div className={`w-3 h-3 border-2 rounded-full animate-spin ${isDarkMode ? 'border-black/20 border-t-black' : 'border-white/20 border-t-white'}`}></div>
                   Proses Magic
                 </span>
               ) : (
@@ -208,13 +261,14 @@ const App: React.FC = () => {
           {/* Section: Result */}
           <div className="lg:col-span-5 flex flex-col">
             <div className="modern-card p-2 flex-1 relative overflow-hidden flex flex-col">
-              <div className="flex-1 flex items-center justify-center bg-[#fafafa] rounded-lg overflow-hidden relative">
+              <div className={`flex-1 flex items-center justify-center rounded-lg overflow-hidden relative min-h-[400px] transition-colors
+                ${isDarkMode ? 'bg-neutral-900' : 'bg-[#fafafa]'}`}>
                 {result ? (
                   <div className="w-full h-full p-2 flex items-center justify-center fade-in-up">
                     <img 
                       src={result} 
                       alt="Magic Result" 
-                      className="max-w-full max-h-full object-contain rounded-md shadow-2xl shadow-black/10" 
+                      className="max-w-full max-h-full object-contain rounded-md shadow-2xl shadow-black/20" 
                     />
                     <button 
                       onClick={() => {
@@ -223,14 +277,15 @@ const App: React.FC = () => {
                         link.download = "mefuya-magic-output.png";
                         link.click();
                       }}
-                      className="absolute bottom-6 right-6 bg-white border border-black/5 p-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all z-10"
+                      className={`absolute bottom-6 right-6 border p-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all z-10
+                        ${isDarkMode ? 'bg-neutral-800 border-neutral-700 text-white' : 'bg-white border-black/5 text-black'}`}
                     >
-                      <i className="fas fa-download text-black"></i>
+                      <i className="fas fa-download"></i>
                     </button>
                   </div>
                 ) : (
                   <div className="text-center p-10 space-y-4 opacity-10">
-                    <div className="w-20 h-20 border border-black rounded-full flex items-center justify-center mx-auto">
+                    <div className={`w-20 h-20 border rounded-full flex items-center justify-center mx-auto ${isDarkMode ? 'border-white' : 'border-black'}`}>
                       <i className="fas fa-wand-magic-sparkles text-3xl"></i>
                     </div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.3em]">AI Image Generator</p>
@@ -238,21 +293,23 @@ const App: React.FC = () => {
                 )}
                 
                 {isGenerating && (
-                  <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 z-20">
-                    <div className="w-10 h-10 border border-black border-t-transparent rounded-full animate-spin mb-6"></div>
-                    <h3 className="text-xs font-bold text-black uppercase tracking-[0.2em]">Sedang Memproses</h3>
+                  <div className={`absolute inset-0 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 z-20
+                    ${isDarkMode ? 'bg-black/80 text-white' : 'bg-white/90 text-black'}`}>
+                    <div className={`w-10 h-10 border border-t-transparent rounded-full animate-spin mb-6 ${isDarkMode ? 'border-white' : 'border-black'}`}></div>
+                    <h3 className="text-xs font-bold uppercase tracking-[0.2em]">Sedang Memproses</h3>
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Mewujudkan imajinasimu...</p>
                   </div>
                 )}
               </div>
               
               {error && (
-                <div className="absolute bottom-8 left-8 right-8 bg-white border border-black p-5 rounded-xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-4 z-30">
-                  <div className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center shrink-0">
+                <div className={`absolute bottom-8 left-8 right-8 border p-5 rounded-xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-4 z-30
+                  ${isDarkMode ? 'bg-neutral-900 border-neutral-700 text-white' : 'bg-white border-black text-black'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-white text-black' : 'bg-black text-white'}`}>
                     <i className="fas fa-info text-[10px]"></i>
                   </div>
                   <span className="text-[11px] font-medium leading-relaxed flex-1">{error}</span>
-                  <button onClick={() => setError(null)} className="text-gray-400 hover:text-black transition-colors">
+                  <button onClick={() => setError(null)} className="text-gray-400 hover:text-red-500 transition-colors">
                     <i className="fas fa-times"></i>
                   </button>
                 </div>
@@ -267,13 +324,14 @@ const App: React.FC = () => {
           <div className="fade-in-up" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center gap-4 mb-8">
               <h2 className="text-[10px] font-bold uppercase tracking-[0.4em] text-gray-400">Kreasi Terakhir</h2>
-              <div className="h-[1px] flex-1 bg-gray-100"></div>
+              <div className={`h-[1px] flex-1 ${isDarkMode ? 'bg-neutral-800' : 'bg-gray-100'}`}></div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {history.map((item, idx) => (
                 <div 
                   key={idx} 
-                  className="group relative aspect-square rounded-xl overflow-hidden border border-gray-100 cursor-pointer hover:border-black transition-all"
+                  className={`group relative aspect-square rounded-xl overflow-hidden border cursor-pointer transition-all
+                    ${isDarkMode ? 'border-neutral-800 hover:border-white' : 'border-gray-100 hover:border-black'}`}
                   onClick={() => setResult(item.resultImage)}
                 >
                   <img src={item.resultImage} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={`History ${idx}`} />
@@ -289,10 +347,11 @@ const App: React.FC = () => {
 
       {/* Tutorial Popup */}
       {showTutorial && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-white/60 backdrop-blur-xl animate-in fade-in duration-500">
-          <div className="bg-white w-full max-w-sm p-10 relative border border-black/5 shadow-2xl rounded-2xl animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-xl animate-in fade-in duration-500">
+          <div className={`w-full max-w-sm p-10 relative border shadow-2xl rounded-2xl animate-in zoom-in-95
+            ${isDarkMode ? 'bg-neutral-900 border-neutral-700 text-white' : 'bg-white border-black/5 text-black'}`}>
             <div className="text-center mb-10">
-              <h3 className="text-xl font-extrabold text-black tracking-tight uppercase">Mefuya Magic</h3>
+              <h3 className="text-xl font-extrabold tracking-tight uppercase">Mefuya Magic</h3>
               <p className="text-gray-400 text-[9px] font-bold tracking-[0.3em] uppercase mt-2">AI Sketch to Image</p>
             </div>
 
@@ -304,15 +363,16 @@ const App: React.FC = () => {
                 { n: "04", t: "Generate menjadi gambar nyata" }
               ].map((step, idx) => (
                 <div key={idx} className="flex items-center gap-4 group">
-                  <span className="text-[10px] font-black text-gray-200 group-hover:text-black transition-colors">{step.n}</span>
-                  <p className="font-bold text-xs tracking-tight text-gray-800">{step.t}</p>
+                  <span className={`text-[10px] font-black transition-colors ${isDarkMode ? 'text-neutral-700 group-hover:text-white' : 'text-gray-200 group-hover:text-black'}`}>{step.n}</span>
+                  <p className={`font-bold text-xs tracking-tight ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>{step.t}</p>
                 </div>
               ))}
             </div>
 
             <button 
               onClick={closeTutorial}
-              className="w-full py-4 bg-black text-white font-bold text-xs uppercase tracking-widest modern-button shadow-xl shadow-black/10"
+              className={`w-full py-4 font-bold text-xs uppercase tracking-widest modern-button shadow-xl
+                ${isDarkMode ? 'bg-white text-black shadow-white/5' : 'bg-black text-white shadow-black/10'}`}
             >
               Mulai Berkreasi
             </button>
@@ -321,7 +381,7 @@ const App: React.FC = () => {
       )}
       
       <footer className="py-12 text-center">
-        <div className="max-w-6xl mx-auto flex flex-col items-center gap-6 text-gray-300 font-bold text-[9px]">
+        <div className="max-w-6xl mx-auto flex flex-col items-center gap-6 text-gray-500 font-bold text-[9px]">
           <div className="flex items-center gap-4 tracking-[0.4em] uppercase">
             <span>&copy; 2025 MEFUYA ENTERTAINMENT</span>
             <span className="opacity-30">•</span>
