@@ -6,7 +6,8 @@ export const transformSketch = async (
   base64Image: string,
   style: StyleType,
   category: CategoryType,
-  promptExtra: string = ""
+  promptExtra: string = "",
+  aspectRatio: string = "1:1"
 ): Promise<string> => {
   const apiKey = process.env.API_KEY;
 
@@ -39,7 +40,7 @@ export const transformSketch = async (
       },
       config: {
         imageConfig: {
-          aspectRatio: "1:1"
+          aspectRatio: aspectRatio
         }
       }
     });
@@ -53,15 +54,15 @@ export const transformSketch = async (
       }
     }
 
-    throw new Error("AI tidak menghasilkan gambar. Silakan coba sketsa yang lebih tebal.");
+    throw new Error(`Gagal generate rasio ${aspectRatio}.`);
   } catch (error: any) {
-    console.error("Gemini API Error:", error);
+    console.error(`Gemini API Error (${aspectRatio}):`, error);
     
     const errorMessage = error.message?.toLowerCase() || "";
     if (errorMessage.includes("quota") || errorMessage.includes("429")) {
       throw new Error("Sistem sedang sibuk (Limit API). Tunggu sebentar lalu coba lagi.");
     }
     
-    throw new Error("Gagal memproses sketsa. Pastikan sketsa terlihat jelas.");
+    throw new Error("Gagal memproses sketsa.");
   }
 };

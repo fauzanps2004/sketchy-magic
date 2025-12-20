@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { StyleType, CategoryType, TransformationResult } from './types';
+import { StyleType, CategoryType, TransformationResult, GeneratedImages } from './types';
 import { STYLES, CATEGORIES } from './constants';
 import { transformSketch } from './geminiService';
 import Header from './components/Header';
@@ -10,7 +10,11 @@ import DrawingCanvas from './components/DrawingCanvas';
 
 const App: React.FC = () => {
   const [sketch, setSketch] = useState<string | null>(null);
-  const [result, setResult] = useState<string | null>(null);
+  
+  // State results sekarang menyimpan object { square, portrait, landscape }
+  const [results, setResults] = useState<GeneratedImages | null>(null);
+  const [activeTab, setActiveTab] = useState<'square' | 'portrait' | 'landscape'>('square');
+
   const [selectedStyle, setSelectedStyle] = useState<StyleType>(StyleType.REALISTIC);
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>(CategoryType.CHARACTER);
   const [extraPrompt, setExtraPrompt] = useState("");
@@ -19,6 +23,7 @@ const App: React.FC = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [history, setHistory] = useState<TransformationResult[]>([]);
   const [inputMode, setInputMode] = useState<'upload' | 'draw'>('upload');
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -73,29 +78,32 @@ const App: React.FC = () => {
     }
   };
 
-  const saveToHistory = (newResult: string) => {
+  const saveToHistory = (newResults: GeneratedImages) => {
     if (!sketch) return;
     const item: TransformationResult = {
       originalImage: sketch,
-      resultImage: newResult,
+      results: newResults,
       style: selectedStyle,
       category: selectedCategory,
       timestamp: Date.now()
     };
 
-    let updatedHistory = [item, ...history].slice(0, 3);
+    // Update state React (selalu berhasil untuk sesi ini)
+    const updatedHistory = [item, ...history].slice(0, 3);
     setHistory(updatedHistory);
 
+    // Coba simpan ke localStorage (bisa gagal karena kuota)
     try {
       localStorage.setItem('mefuya_history', JSON.stringify(updatedHistory));
     } catch (e: any) {
-      console.warn("Storage quota warning:", e);
+      // Jika penuh, coba simpan hanya item terakhir
       try {
-        updatedHistory = [item];
-        setHistory(updatedHistory);
-        localStorage.setItem('mefuya_history', JSON.stringify(updatedHistory));
+        localStorage.setItem('mefuya_history', JSON.stringify([item]));
       } catch (retryError) {
-        console.error("Storage full. History not saved to local storage.");
+        // Jika masih penuh (misal gambar terlalu besar), bersihkan history di storage
+        // agar tidak menyebabkan error berkelanjutan, tapi tetap biarkan state React aktif.
+        console.warn("Storage full. History hanya tersedia untuk sesi ini.");
+        localStorage.removeItem('mefuya_history');
       }
     }
   };
@@ -108,18 +116,27 @@ const App: React.FC = () => {
 
     setIsGenerating(true);
     setError(null);
+    setResults(null); // Reset hasil sebelumnya saat mulai baru
 
     try {
-      const generatedUrl = await transformSketch(
-        sketch, 
-        selectedStyle, 
-        selectedCategory, 
-        extraPrompt
-      );
-      setResult(generatedUrl);
-      saveToHistory(generatedUrl);
+      // Jalankan 3 request secara paralel menggunakan Promise.all
+      const [sq, pt, ls] = await Promise.all([
+        transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt, "1:1"),
+        transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt, "9:16"),
+        transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt, "16:9")
+      ]);
+
+      const newResults: GeneratedImages = {
+        square: sq,
+        portrait: pt,
+        landscape: ls
+      };
+
+      setResults(newResults);
+      setActiveTab('square'); // Default view ke square
+      saveToHistory(newResults);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Gagal menghasilkan gambar. Coba lagi.");
     } finally {
       setIsGenerating(false);
     }
@@ -128,8 +145,14 @@ const App: React.FC = () => {
   const toggleMode = (mode: 'upload' | 'draw') => {
     setInputMode(mode);
     setSketch(null);
-    setResult(null);
+    setResults(null);
     setError(null);
+  };
+
+  // Helper untuk mendapatkan gambar yang sedang aktif
+  const getActiveImage = () => {
+    if (!results) return null;
+    return results[activeTab];
   };
 
   return (
@@ -159,7 +182,7 @@ const App: React.FC = () => {
                 </div>
                 {inputMode === 'upload' && sketch && (
                   <button 
-                    onClick={() => { setSketch(null); setResult(null); }}
+                    onClick={() => { setSketch(null); setResults(null); }}
                     className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:opacity-70 transition-opacity"
                   >
                     Hapus
@@ -170,7 +193,7 @@ const App: React.FC = () => {
               <div className="flex-1 min-h-[350px]">
                 {inputMode === 'upload' ? (
                   <UploadZone 
-                    onImageSelect={(b) => { setSketch(b); setResult(null); setError(null); }} 
+                    onImageSelect={(b) => { setSketch(b); setResults(null); setError(null); }} 
                     previewImage={sketch} 
                   />
                 ) : (
@@ -261,24 +284,52 @@ const App: React.FC = () => {
           {/* Section: Result */}
           <div className="lg:col-span-5 flex flex-col">
             <div className="modern-card p-2 flex-1 relative overflow-hidden flex flex-col">
+              
+              {/* Tab Selector - Only show if we have results */}
+              {results && (
+                <div className={`flex items-center p-2 mb-2 rounded-lg gap-2 ${isDarkMode ? 'bg-neutral-900' : 'bg-gray-50'}`}>
+                    {[
+                        { id: 'square', label: '1:1', icon: 'fa-square' },
+                        { id: 'portrait', label: '9:16', icon: 'fa-mobile-alt' },
+                        { id: 'landscape', label: '16:9', icon: 'fa-tv' }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`flex-1 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all
+                                ${activeTab === tab.id 
+                                    ? (isDarkMode ? 'bg-neutral-800 text-white shadow-sm' : 'bg-white text-black shadow-sm') 
+                                    : 'text-gray-400 hover:text-gray-500'}`}
+                        >
+                            <i className={`fas ${tab.icon}`}></i>
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+              )}
+
               <div className={`flex-1 flex items-center justify-center rounded-lg overflow-hidden relative min-h-[400px] transition-colors
                 ${isDarkMode ? 'bg-neutral-900' : 'bg-[#fafafa]'}`}>
-                {result ? (
-                  <div className="w-full h-full p-2 flex items-center justify-center fade-in-up">
+                {results ? (
+                  <div className="w-full h-full p-2 flex items-center justify-center fade-in-up relative group/result">
                     <img 
-                      src={result} 
-                      alt="Magic Result" 
-                      className="max-w-full max-h-full object-contain rounded-md shadow-2xl shadow-black/20" 
+                      key={activeTab} // Force re-render on tab change for animation
+                      src={getActiveImage()!} 
+                      alt={`Magic Result ${activeTab}`} 
+                      onClick={() => setFullScreenImage(getActiveImage()!)}
+                      className="max-w-full max-h-full object-contain rounded-md shadow-2xl shadow-black/20 animate-in zoom-in-95 duration-300 cursor-zoom-in" 
+                      title="Klik untuk memperbesar"
                     />
                     <button 
                       onClick={() => {
                         const link = document.createElement('a');
-                        link.href = result;
-                        link.download = "mefuya-magic-output.png";
+                        link.href = getActiveImage()!;
+                        link.download = `wallpaper-magic-${activeTab}.png`;
                         link.click();
                       }}
                       className={`absolute bottom-6 right-6 border p-4 rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all z-10
                         ${isDarkMode ? 'bg-neutral-800 border-neutral-700 text-white' : 'bg-white border-black/5 text-black'}`}
+                      title="Download gambar ini"
                     >
                       <i className="fas fa-download"></i>
                     </button>
@@ -297,7 +348,7 @@ const App: React.FC = () => {
                     ${isDarkMode ? 'bg-black/80 text-white' : 'bg-white/90 text-black'}`}>
                     <div className={`w-10 h-10 border border-t-transparent rounded-full animate-spin mb-6 ${isDarkMode ? 'border-white' : 'border-black'}`}></div>
                     <h3 className="text-xs font-bold uppercase tracking-[0.2em]">Sedang Memproses</h3>
-                    <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Mewujudkan imajinasimu...</p>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-2">Membuat 3 variasi...</p>
                   </div>
                 )}
               </div>
@@ -332,11 +383,15 @@ const App: React.FC = () => {
                   key={idx} 
                   className={`group relative aspect-square rounded-xl overflow-hidden border cursor-pointer transition-all
                     ${isDarkMode ? 'border-neutral-800 hover:border-white' : 'border-gray-100 hover:border-black'}`}
-                  onClick={() => setResult(item.resultImage)}
+                  onClick={() => {
+                    setResults(item.results);
+                    setActiveTab('square');
+                  }}
                 >
-                  <img src={item.resultImage} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={`History ${idx}`} />
+                  {/* Gunakan gambar square sebagai thumbnail */}
+                  <img src={item.results.square} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={`History ${idx}`} />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-[8px] font-bold text-white uppercase tracking-widest">Lihat</span>
+                    <span className="text-[8px] font-bold text-white uppercase tracking-widest">Buka</span>
                   </div>
                 </div>
               ))}
@@ -345,14 +400,39 @@ const App: React.FC = () => {
         )}
       </main>
 
+      {/* Full Screen Image Preview Modal */}
+      {fullScreenImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <div className="relative w-full h-full flex items-center justify-center">
+             {/* Close Button */}
+            <button 
+              onClick={() => setFullScreenImage(null)}
+              className="absolute top-0 right-0 p-4 text-white/50 hover:text-white transition-colors z-50"
+            >
+              <i className="fas fa-times text-3xl"></i>
+            </button>
+
+            <img 
+              src={fullScreenImage} 
+              alt="Full Screen Preview" 
+              className="max-w-full max-h-full object-contain shadow-2xl rounded-lg animate-in zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Tutorial Popup */}
       {showTutorial && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/50 backdrop-blur-xl animate-in fade-in duration-500">
           <div className={`w-full max-w-sm p-10 relative border shadow-2xl rounded-2xl animate-in zoom-in-95
             ${isDarkMode ? 'bg-neutral-900 border-neutral-700 text-white' : 'bg-white border-black/5 text-black'}`}>
             <div className="text-center mb-10">
-              <h3 className="text-xl font-extrabold tracking-tight uppercase">Mefuya Magic</h3>
-              <p className="text-gray-400 text-[9px] font-bold tracking-[0.3em] uppercase mt-2">AI Sketch to Image</p>
+              <h3 className="text-xl font-extrabold tracking-tight uppercase">Wallpaper Magic</h3>
+              <p className="text-gray-400 text-[9px] font-bold tracking-[0.3em] uppercase mt-2">by Mefuya Entertainment</p>
             </div>
 
             <div className="space-y-6 mb-10">
@@ -360,7 +440,7 @@ const App: React.FC = () => {
                 { n: "01", t: "Gambar sketsa atau upload gambar" },
                 { n: "02", t: "Tambahkan detail deskripsi" },
                 { n: "03", t: "Pilih gaya visual favoritmu" },
-                { n: "04", t: "Generate menjadi gambar nyata" }
+                { n: "04", t: "Generate 3 variasi sekaligus" }
               ].map((step, idx) => (
                 <div key={idx} className="flex items-center gap-4 group">
                   <span className={`text-[10px] font-black transition-colors ${isDarkMode ? 'text-neutral-700 group-hover:text-white' : 'text-gray-200 group-hover:text-black'}`}>{step.n}</span>
@@ -383,9 +463,9 @@ const App: React.FC = () => {
       <footer className="py-12 text-center">
         <div className="max-w-6xl mx-auto flex flex-col items-center gap-6 text-gray-500 font-bold text-[9px]">
           <div className="flex items-center gap-4 tracking-[0.4em] uppercase">
-            <span>&copy; 2025 MEFUYA ENTERTAINMENT</span>
+            <span>&copy; 2025 Wallpaper Magic</span>
             <span className="opacity-30">•</span>
-            <span>MAGIC STUDIO</span>
+            <span>Mefuya Entertainment</span>
           </div>
         </div>
       </footer>

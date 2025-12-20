@@ -13,12 +13,12 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleTheme }) => {
         <div className="text-center group cursor-default space-y-2">
           <div className={`text-4xl md:text-5xl font-black tracking-[-0.05em] leading-none uppercase transition-colors
             ${isDarkMode ? 'text-white' : 'text-black'}`}>
-            Mefuya
+            Wallpaper Magic
           </div>
           <div className="flex items-center justify-center gap-3">
             <div className={`h-[1px] w-8 transition-colors ${isDarkMode ? 'bg-white/10' : 'bg-black/10'}`}></div>
-            <div className="text-[10px] md:text-xs tracking-[0.6em] font-bold text-gray-400 uppercase">
-              Entertainment
+            <div className="text-[10px] md:text-xs tracking-[0.4em] font-bold text-gray-400 uppercase">
+              by Mefuya Entertainment
             </div>
             <div className={`h-[1px] w-8 transition-colors ${isDarkMode ? 'bg-white/10' : 'bg-black/10'}`}></div>
           </div>
