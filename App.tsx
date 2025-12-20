@@ -120,6 +120,7 @@ const App: React.FC = () => {
 
     try {
       // Jalankan 3 request secara paralel menggunakan Promise.all
+      // Note: Seed dihapus karena menyebabkan error pada model gemini-2.5-flash-image
       const [sq, pt, ls] = await Promise.all([
         transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt, "1:1"),
         transformSketch(sketch, selectedStyle, selectedCategory, extraPrompt, "9:16"),
